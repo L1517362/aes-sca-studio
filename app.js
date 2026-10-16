@@ -156,7 +156,28 @@
     applyConfig(result.config,result.migrated?'旧版配置已导入并补齐为 1.1，待重新加载结果。':'配置校验通过，当前案例已更新。');return true;
   }
   async function importFile(file){if(!file)return;if(file.size>2*1024*1024){ui.errors=['配置文件超过 2 MB，请使用仅包含元数据的 JSON。'];navigate('config');toast('文件过大，未导入。',true);return;}try{importConfig(await file.text());}catch{toast('无法读取该文件，请选择有效的 JSON 配置。',true);}}
+  const assetLoads=new Map();
+  async function ensureEmbeddedAsset(file){
+    if(!A[file])throw new Error('缺少图片：'+file);
+    if(A[file].startsWith('data:image/'))return A[file];
+    if(!assetLoads.has(file)){
+      const task=(async()=>{
+        const response=await fetch(A[file]);
+        if(!response.ok)throw new Error('图片加载失败：'+file+'（HTTP '+response.status+'）');
+        const blob=await response.blob();
+        const dataURL=await new Promise((resolve,reject)=>{
+          const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('图片读取失败：'+file));reader.readAsDataURL(blob);
+        });
+        if(!dataURL.startsWith('data:image/'))throw new Error('图片格式不正确：'+file);
+        A[file]=dataURL;return dataURL;
+      })();
+      assetLoads.set(file,task);
+      task.catch(()=>assetLoads.delete(file));
+    }
+    return assetLoads.get(file);
+  }
   async function verifyAsset(file){
+    await ensureEmbeddedAsset(file);
     if(!A[file]||!M[file])throw new Error('缺少对应素材或来源记录：'+file);
     const image=new Image();image.src=A[file];await image.decode();
     if(!image.naturalWidth||!image.naturalHeight)throw new Error('图片无法解码：'+file);
@@ -176,7 +197,7 @@
     const valid=C.validateConfig(state.config);if(!valid.ok){toast(valid.errors[0],true);return false;}
     const revision=state.revision,v=current(),start=performance.now();ui.busy=kind;render();
     try{
-      const files=kind==='baseline'?[v.baselineAsset]:[v.protectedAsset,v.sboxAsset,v.aesAsset,'table-fpga.png','table-asic.png'];
+      const files=kind==='baseline'?[v.baselineAsset]:[v.protectedAsset,v.sboxAsset,v.aesAsset,'table-fpga.png','table-asic.png','hardware-photo.jpg','acquisition.png'];
       const checks=await Promise.all(files.map(verifyAsset));
       if(revision!==state.revision)return false;
       const hashChecked=checks.every(c=>c.hash_checked);
