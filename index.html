@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="AES 侧信道防护案例工作台：导入配置、加载基线与防护结果、对比资源并导出独立报告。">
+  <title>AES 侧信道防护对比与报告系统 · SCA Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%236755d5'/%3E%3Cpath d='M20 7l11 5v9c0 7-11 13-11 13S9 28 9 21v-9z' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M13 21h4l2-6 3 12 2-6h4' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="data.js"></script>
+  <script defer src="assets.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div id="app"></div>
+  <input id="config-file" type="file" accept=".json,application/json" hidden aria-label="选择项目配置文件">
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="image-viewer" class="image-viewer" aria-labelledby="viewer-title">
+    <div class="viewer-head"><div><h2 id="viewer-title"></h2><p id="viewer-source"></p></div><button class="icon-button" data-action="close-viewer" aria-label="关闭原图">×</button></div>
+    <div class="viewer-tools"><button class="button small" data-action="zoom-out" aria-label="缩小">−</button><output id="zoom-value">100%</output><button class="button small" data-action="zoom-in" aria-label="放大">+</button><button class="button small" data-action="download-image">下载原图</button><button class="button small" data-action="viewer-source">查看来源</button></div>
+    <div class="viewer-canvas"><img id="viewer-image" alt=""></div>
+  </dialog>
+  <noscript>请在浏览器中启用 JavaScript，以使用配置导入、案例加载与报告导出功能。</noscript>
+</body>
+</html>
