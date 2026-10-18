@@ -33,13 +33,252 @@
     }
   };
   const sources = [
-    {id:'liu-2025-thesis', title:'面向密码芯片的轻量化门限实现侧信道防护技术研究', author:'刘波涛', year:2025, chapter:5, type:'博士论文', note:'主要理论、结构、TVLA 原图及资源表的来源。'},
-    {id:'aes-2021', title:'New First-Order Secure AES Performance Records', author:'Aein Rezaei Shahmirzadi, Dušan Božilov, Amir Moradi', year:2021, type:'公开论文', url:'https://doi.org/10.46586/tches.v2021.i2.304-327', note:'表 3 的字节串行、含 PRNG、带 key masking 条目；单列参考，统计口径需核对。'},
-    {id:'giii-guide', title:'SASEBO-GIII Quick Start Guide Version 1.0', author:'AIST', year:2013, type:'硬件指南', note:'拨码与测量连接示例，分别出自 PDF 第 4、6 页。'},
-    {id:'giii-spec', title:'SASEBO-GIII Specification Version 1.1', author:'AIST', year:2013, type:'规格书', note:'板卡功能与接口图出自 PDF 第 6 页。'},
-    {id:'gii-workflow', title:'SASEBO-GII采集流程_LYG0620', author:'既有实验操作资料', type:'采集流程', note:'程序配置、GII 通道与触发接线。'},
-    {id:'provided-photos', title:'已提供的设备照片、现场波形照片与采集截图', author:'项目既有材料', type:'照片与截图', note:'说明设备外观和历史采集画面；未验证其与论文曲线属于同一次采集。'}
+    {id:'liu-2025-thesis', title:'AES 侧信道防护对比与报告系统 · 最终项目文档', author:'SSS 小队', year:2026, type:'项目文档', note:'案例结构、检测图、性能表及参考文献按最终项目文档关联；参考文献见文档第 36-37 页。'},
+    {id:'giii-guide', title:'SASEBO-GIII Quick Start Guide Version 1.0', author:'AIST', year:2013, type:'设备资料', note:'项目文档图 3-4、图 3-6 对应的拨码与测量连接资料。'},
+    {id:'giii-spec', title:'Side-channel Attack Standard Evaluation Board SASEBO-GIII Specification: Version 1.1', author:'AIST', year:2013, type:'设备资料', reference_number:4, note:'对应最终文档参考文献 [4]，用于板卡功能与接口说明。'},
+    {id:'gii-workflow', title:'SASEBO-GII采集流程_LYG0620', author:'项目提供材料', type:'采集资料', note:'程序配置、GII 通道与触发接线的配套操作材料。'},
+    {id:'provided-photos', title:'设备照片、现场波形照片与采集截图', author:'项目提供材料', type:'照片与截图', note:'对应项目文档中的设备与采集记录；未将这些画面认定为本次软件运行新增的测量。'}
   ];
+  const referenceDocument = {
+  "filename": "SSS小队_AES 侧信道防护对比与报告系统_项目文档.pdf",
+  "title": "AES 侧信道防护对比与报告系统 · 最终项目文档",
+  "author": "SSS 小队",
+  "sha256": "00d70653ceaac83e081aad0b9afc6d0a98a284e4eec93b4131bc8fd3745f6255",
+  "reference_pdf_pages": [
+    39,
+    40
+  ],
+  "reference_document_pages": [
+    36,
+    37
+  ],
+  "reference_count": 16,
+  "updated_on": "2026-10-18"
+};
+  const references = [
+  {
+    "number": 1,
+    "text": "李兆宗. 关于《中华人民共和国密码法(草案)》的说明——2019 年 6 月 25 日在第十三届全国人民代表大会常务委员会第十一次会议上[J].中华人民共和国全国人民代表大会常务委员会公报,2019(6): 917-919."
+  },
+  {
+    "number": 2,
+    "text": "冯登国. 信息技术助推商用密码创新发展[J]. 中国信息安全,2023(7): 20-22."
+  },
+  {
+    "number": 3,
+    "text": "Ishai Y, Sahai A, Wagner D. Private circuits: Securing hardware against probing attacks[C]//Advances in Cryptology-CRYPTO 2003: 23rd Annual International Cryptology Conference, Santa Barbara, California, USA, August 17-21, 2003. Proceedings 23. Springer, 2003: 463-481."
+  },
+  {
+    "number": 4,
+    "text": "AIST. Side-channel Attack Standard Evaluation Board SASEBO-GIII Specification: Version 1.1[EB/OL]. 2013-04-26."
+  },
+  {
+    "number": 5,
+    "text": "Nikova S, Rechberger C, Rijmen V. Threshold implementations against side-channel attacks and glitches[C]//International conference on information and communications security-ICICS 2006. Springer, 2006: 529-545."
+  },
+  {
+    "number": 6,
+    "text": "Groß H, Mangard S, Korak T. Domain-oriented masking: Compact masked hardware implementations with arbitrary protection order[J]. Cryptology ePrint Archive, 2016: 486."
+  },
+  {
+    "number": 7,
+    "text": "Daemen J. Changing of the guards: A simple and efficient method for achieving uniformity in threshold sharing[C]//International Conference on Cryptographic Hardware and Embedded Systems CHES 2017. Springer, 2017: 137-153."
+  },
+  {
+    "number": 8,
+    "text": "Askeland A, Dhooghe S, Nikova S, et al. Guarding the first order: The rise of aes maskings[C]//International Conference on Smart Card Research and Advanced Applications- CARDIS 2022.Springer, 2022: 103-122."
+  },
+  {
+    "number": 9,
+    "text": "Nikova S, Rijmen V, Schläffer M. Secure hardware implementation of nonlinear functions in the presence of glitches[J]. Journal of Cryptology, 2011, 24(2): 292-321."
+  },
+  {
+    "number": 10,
+    "text": "Shahmirzadi A R, Moradi A. Re-consolidating first-order masking schemes: Nullifying fresh randomness[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2021, 2021(1): 305-342."
+  },
+  {
+    "number": 11,
+    "text": "Wu L, Fan Y, Wang W, et al. Extending randomness-free first-order masking schemes and applications to masking-friendly s-boxes[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2025, 2025(1): 340-366."
+  },
+  {
+    "number": 12,
+    "text": "Bilgin B, Gierlichs B, Nikova S, et al. Higher-order threshold implementations[C]//Advances in Cryptology–ASIACRYPT 2014: 20th International Conference on the Theory and Application of Cryptology and Information Security, Kaoshiung, Taiwan, ROC, December 7-11, 2014, Proceedings, Part II 20. Springer, 2014: 326-343."
+  },
+  {
+    "number": 13,
+    "text": "赵静远,徐松艳,张子剑,等. 轻量级分组密码算法 GIFT 的差分分析[J]. 密码学报,2018,5(4):335-343."
+  },
+  {
+    "number": 14,
+    "text": "Bilgin B, Gierlichs B, Nikova S, et al. Trade-offs for threshold implementations illustrated on aes[J]. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems, 2015, 34(7):1188-1200."
+  },
+  {
+    "number": 15,
+    "text": "SAKURA. Side-channel attack user reference architecture[EB/OL]. https://satoh.cs.uec.ac.jp/SAKURA/index.html, Last accessed on: 2024-3-16.",
+    "url": "https://satoh.cs.uec.ac.jp/SAKURA/index.html"
+  },
+  {
+    "number": 16,
+    "text": "Yao F, Chen H, Wei Y, et al. Optimizing aes threshold implementation under the glitch-extended probing model[J]. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems, 2024, 43(7): 1984-1997."
+  }
+];
+  const documentAssetLocations = {
+  "project-composition.png": {
+    "pdf_page": 9,
+    "document_page": 6,
+    "item": "图 2-1"
+  },
+  "sbox-integrated.png": {
+    "pdf_page": 10,
+    "document_page": 7,
+    "item": "图 2-2"
+  },
+  "sbox-low-area.png": {
+    "pdf_page": 11,
+    "document_page": 8,
+    "item": "图 2-3"
+  },
+  "cmt-tree.png": {
+    "pdf_page": 13,
+    "document_page": 10,
+    "item": "图 2-4"
+  },
+  "table-gates.png": {
+    "pdf_page": 13,
+    "document_page": 10,
+    "item": "表 2-1"
+  },
+  "sbox-low-random.png": {
+    "pdf_page": 18,
+    "document_page": 15,
+    "item": "图 2-5"
+  },
+  "aes-low-area.png": {
+    "pdf_page": 20,
+    "document_page": 17,
+    "item": "图 2-6"
+  },
+  "aes-low-random.png": {
+    "pdf_page": 20,
+    "document_page": 17,
+    "item": "图 2-7"
+  },
+  "hardware-photo.jpg": {
+    "pdf_page": 21,
+    "document_page": 18,
+    "item": "图 2-8"
+  },
+  "acquisition.png": {
+    "pdf_page": 23,
+    "document_page": 20,
+    "item": "图 2-9；图 3-7（PDF 第 34 页）"
+  },
+  "tvla-area-baseline.png": {
+    "pdf_page": 25,
+    "document_page": 22,
+    "item": "图 2-11"
+  },
+  "tvla-area-protected.png": {
+    "pdf_page": 25,
+    "document_page": 22,
+    "item": "图 2-12"
+  },
+  "tvla-random-baseline.png": {
+    "pdf_page": 26,
+    "document_page": 23,
+    "item": "图 2-13"
+  },
+  "tvla-random-protected.png": {
+    "pdf_page": 26,
+    "document_page": 23,
+    "item": "图 2-14"
+  },
+  "tvla-area-growth.png": {
+    "pdf_page": 29,
+    "document_page": 26,
+    "item": "图 3-1"
+  },
+  "tvla-random-growth.png": {
+    "pdf_page": 29,
+    "document_page": 26,
+    "item": "图 3-2"
+  },
+  "giii-functions-original.png": {
+    "pdf_page": 31,
+    "document_page": 28,
+    "item": "图 3-3"
+  },
+  "giii-setup-original.png": {
+    "pdf_page": 32,
+    "document_page": 29,
+    "item": "图 3-4"
+  },
+  "gii-04.png": {
+    "pdf_page": 32,
+    "document_page": 29,
+    "item": "图 3-5"
+  },
+  "giii-measurement-original.png": {
+    "pdf_page": 33,
+    "document_page": 30,
+    "item": "图 3-6"
+  },
+  "wave-photo-1.png": {
+    "pdf_page": 24,
+    "document_page": 21,
+    "item": "图 2-10"
+  },
+  "wave-photo-2.png": {
+    "pdf_page": 24,
+    "document_page": 21,
+    "item": "图 2-10"
+  },
+  "wave-photo-3.png": {
+    "pdf_page": 24,
+    "document_page": 21,
+    "item": "图 2-10"
+  },
+  "wave-photo-4.png": {
+    "pdf_page": 24,
+    "document_page": 21,
+    "item": "图 2-10"
+  },
+  "eq-5-2.png": {
+    "item": "第 2.2.2 节"
+  },
+  "eq-5-3.png": {
+    "item": "第 2.2.2 节"
+  },
+  "eq-5-4.png": {
+    "item": "第 2.2.4 节"
+  },
+  "eq-5-5.png": {
+    "item": "第 2.2.5 节"
+  },
+  "eq-5-6.png": {
+    "item": "第 2.2.5 节"
+  },
+  "eq-5-7.png": {
+    "item": "第 2.2.5 节"
+  },
+  "eq-5-8.png": {
+    "item": "第 2.2.5 节"
+  },
+  "eq-5-9.png": {
+    "item": "第 2.2.6 节"
+  },
+  "eq-5-10.png": {
+    "item": "第 2.2.6 节"
+  },
+  "table-asic.png": {
+    "related_document_item": "表 3-1",
+    "related_document_pdf_page": 30
+  },
+  "table-fpga.png": {
+    "related_document_item": "表 3-2",
+    "related_document_pdf_page": 30
+  }
+};
   const notes = [
     'TVLA 原图来自既有研究。基线报告 100000 条曲线，防护报告 10000000 条曲线；两组精确样本数与逐点 t 值未提供。',
     '样本量和纵轴范围不同，不以曲线高度或样本量之比计算安全性提升百分比；一阶未越阈不构成完全安全结论。',
@@ -91,7 +330,7 @@
       }
     ]
   };
-  const data = {version:'1.0.0', schemaVersion:'1.1', conditions, variants, sources, notes, publicReference, reportPerformanceTables,
+  const data = {version:'1.0.1', schemaVersion:'1.1', conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, documentAssetLocations,
     resourceEnvironment: {platform:'Spartan-6 XC6SLX75',tool:'ISE Design Suite 14.7',source_id:'liu-2025-thesis',table:'5.4'},
     asicEnvironment: {platform:'NanGate 45nm',tool:'Design Compiler v2016.03',source_id:'liu-2025-thesis',table:'5.3'}
   };
