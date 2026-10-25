@@ -5,6 +5,7 @@
   const number=s=>Number(s.replace(/,/g,''));
   function parseIseReport(text,meta={}){
     const r=E.record(text,meta,'historical_ise_report','ise-text');
+    if(meta.import_identity)r.import_identity={...meta.import_identity};
     if(E.invalidText(r))return r;
     const header=r.lines.findIndex(line=>/^Release\s+[\d.]+\s+(?:-\s*)?(xst|Map|par|Trace)\b/i.test(line));
     if(header<0){r.status='unsupported';r.errors.push('未识别ISE XST/MAP/PAR/Trace报告头。');return r;}

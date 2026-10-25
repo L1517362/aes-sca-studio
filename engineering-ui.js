@@ -14,11 +14,30 @@
   function cancel(clear=false){state.generation++;state.busy=false;state.errors=[];state.selection=null;state.lastSelection=null;if(clear){state.records=[];state.ise_groups=[];state.pairings=[];}refresh();}
   async function hash(bytes){if(!root.crypto?.subtle)return null;return Array.from(new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');}
   function inferredVariant(path){if(/(?:^|[/\\])Without_Random(?:[/\\]|$)/i.test(path))return 'low-randomness-ti';if(/(?:^|[/\\])With_Random(?:[/\\]|$)/i.test(path))return 'low-resource-ti';return null;}
+  function iseIdentity(item,path,sha,selectedVariant,references,generation,confirmed){
+    const known=sha?references.filter(x=>x.kind==='ise'&&x.sha256===sha):[];
+    if(new Set(known.map(x=>x.variant_id+'|'+x.bundle_id)).size>1)throw new Error('报告校验值对应多个来源，请选择工程目录核对。');
+    const reference=known[0];
+    const pathVariants=['With_Random','Without_Random'].filter(name=>new RegExp('(?:^|[/\\\\])'+name+'(?:[/\\\\]|$)','i').test(path));
+    if(pathVariants.length>1)throw new Error('工程目录同时包含两种方案标识，请分别选择各方案工程目录。');
+    const pathVariant=inferredVariant(path);
+    const explicit=item.variant_id||(selectedVariant==='all'?null:selectedVariant);
+    const variants=[...new Set([reference?.variant_id,pathVariant,explicit].filter(Boolean))];
+    if(variants.length>1)throw new Error('方案归属冲突：所选方案、工程目录或报告来源不一致。请使用“自动识别两方案”或选择对应方案。');
+    if(!variants.length)return null;
+    const directory=path.replace(/\\/g,'/').replace(/\/[^/]*$/,'');
+    return {variant_id:variants[0],bundle_id:item.bundle_id||(path&&directory!==path?directory:null)||reference?.bundle_id||'manual-'+generation,
+      association_confirmed:!!item.association_confirmed||confirmed||!!reference,
+      import_identity:reference?{basis:'known_source_sha256',reference_path:reference.relative_path,reference_sha256:reference.sha256}:
+        {basis:pathVariant?'project_directory':'user_selected_variant'}};
+  }
   async function importEntries(entries){
     const confirmed=!!document.getElementById('eng-confirm-bundle')?.checked;
-    const importKind=state.kind;
+    const importKind=state.kind,selectedVariant=state.variant_id,encoding=state.encoding,sourceNote=state.source_note;
     const generation=++state.generation;state.busy=true;state.errors=[];state.selection=null;state.lastSelection=null;refresh();
-    const parsed=[],errors=[];let total=0;
+    const parsed=[],errors=[],unresolved=[];let total=0,references=[];
+    if(importKind==='ise'&&entries.length){try{references=(await samples()).entries;}catch(_){/* Directory and explicit imports remain available without the reference catalogue. */}}
+    if(generation!==state.generation)return;
     for(let n=0;n<entries.length;n++){
       if(generation!==state.generation)return;
       const item=entries[n];
@@ -26,14 +45,15 @@
         const bytes=item.bytesBuffer||await item.file.arrayBuffer();total+=bytes.byteLength;
         if(bytes.byteLength>5*1024*1024||total>20*1024*1024)throw new Error('单文件上限5 MiB，每批合计上限20 MiB。');
         const path=item.relative_path||item.file?.webkitRelativePath||'';
-        const variant=item.variant_id||(state.variant_id==='all'?inferredVariant(path):state.variant_id);
-        if(!variant)throw new Error('请明确选择所属方案，或选择包含With_Random/Without_Random的工程目录。');
         const sha=await hash(bytes);if(item.sha256&&sha&&sha!==item.sha256)throw new Error('样例内容SHA-256不匹配。');
-        const text=new TextDecoder(state.encoding,{fatal:true}).decode(bytes);
+        const text=new TextDecoder(encoding,{fatal:true}).decode(bytes);
+        const identity=importKind==='ise'?iseIdentity(item,path,sha,selectedVariant,references,generation,confirmed):null;
+        const variant=importKind==='ise'?identity?.variant_id:item.variant_id||(selectedVariant==='all'?inferredVariant(path):selectedVariant);
+        if(!variant){unresolved.push(item.name||item.file?.name||'输入');continue;}
         const meta={file_id:'input-'+generation+'-'+n,name:item.name||item.file.name,bytes:bytes.byteLength,sha256:sha,
-          relative_path:path||null,source_note:state.source_note,variant_id:variant,
+          relative_path:path||null,source_note:sourceNote,variant_id:variant,
           bundle_id:item.bundle_id||(path.includes('/')?path.slice(0,path.lastIndexOf('/')):'manual-'+generation),
-          association_confirmed:!!item.association_confirmed||confirmed};
+          association_confirmed:!!item.association_confirmed||confirmed,...identity};
         const record=importKind==='ise'?I.parseIseReport(text,meta):parseProleadInput(text,meta);
         if(['error','unsupported'].includes(record.status))errors.push(meta.name+'：'+record.errors.join('；'));
         else parsed.push(record);
@@ -41,11 +61,16 @@
       await new Promise(resolve=>setTimeout(resolve,0));
     }
     if(generation!==state.generation)return;
+    if(unresolved.length)errors.push(unresolved.length+'份文件未能自动确定方案（'+[...new Set(unresolved)].join('、')+'）。'+(importKind==='ise'?'普通文件选择不包含目录信息；已收录ISE报告可按SHA-256识别。其他报告请分别选择所属方案后导入，或选择包含With_Random / Without_Random的工程目录。两方案结果可分别导入并同时保留。':'请选择所属方案，或选择包含With_Random / Without_Random的工程目录。'));
     if(!entries.length)errors.push('没有选择可识别的报告文件。');
-    if(!errors.length&&parsed.length){state.records=[...state.records.filter(r=>importKind==='ise'?!r.evidence_kind.startsWith('historical_ise'):!r.evidence_kind.startsWith('historical_prolead')), ...parsed];state.ise_groups=I.groupIseReports(state.records,D.variants);state.pairings=P.pairRecords(state.records);}
+    if(!errors.length&&parsed.length){
+      const importedVariants=new Set(parsed.map(r=>r.variant_id));
+      state.records=[...state.records.filter(r=>importKind==='ise'?(!r.evidence_kind.startsWith('historical_ise')||!importedVariants.has(r.variant_id)):!r.evidence_kind.startsWith('historical_prolead')), ...parsed];
+      state.ise_groups=I.groupIseReports(state.records,D.variants);state.pairings=P.pairRecords(state.records);
+    }
     state.errors=errors;state.busy=false;refresh();
     const toolErrors=parsed.some(r=>E.operationalErrors(r).length);
-    host.toast(errors.length?'本批导入未完成，已保留上一份有效复核。':toolErrors?'已读取报告，工具输出包含ERROR，请查看报告错误详情。':'工程报告已解析，可查看依据并导出。',!!errors.length||toolErrors);
+    host.toast(errors.length?'本批导入未完成，已保留上一份有效复核。':toolErrors?'已读取报告，工具输出包含ERROR，请查看报告错误详情。':importKind==='ise'?'已解析'+parsed.length+'份ISE报告，当前保留'+state.ise_groups.length+'个工程分组。':'工程报告已解析，可查看依据并导出。',!!errors.length||toolErrors);
   }
   async function samples(){
     if(root.AESEngineeringSamples)return root.AESEngineeringSamples;
@@ -88,7 +113,7 @@
     return E.proleadHTML({records,pairings:state.pairings})+records.filter(r=>r.evidence_kind!=='historical_prolead_log').map(r=>'<details class="panel eng-evidence"><summary>'+e(r.file.relative_path||r.file.name)+' · 候选配置 / 命令依据</summary><div class="panel-body"><p class="hash">SHA-256 '+e(r.file.sha256||'未校验')+'</p>'+E.evidenceHTML(r)+'</div></details>').join('');
   }
   function kindBar(){return '<div class="eng-actions eng-kind-bar" role="group" aria-label="工程复核类型">'+btn('ISE资源与时序','kind',state.kind==='ise'?'primary':'','data-kind="ise"')+btn('PROLEAD日志复核','kind',state.kind==='prolead'?'primary':'','data-kind="prolead"')+btn('条件筛选','kind',state.kind==='selection'?'primary':'','data-kind="selection"')+'</div>';}
-  function iseInputPanel(){return '<section class="panel panel-body eng-input-panel"><div class="panel-head"><h2>导入ISE资源与时序报告</h2><span class="chip purple">历史输入 · 本次解析</span></div><div class="eng-fields"><label>导入归属<select id="eng-variant"><option value="low-resource-ti" '+(state.variant_id==='low-resource-ti'?'selected':'')+'>低资源门限防护</option><option value="low-randomness-ti" '+(state.variant_id==='low-randomness-ti'?'selected':'')+'>低随机数门限防护</option><option value="all" '+(state.variant_id==='all'?'selected':'')+'>按工程目录识别两方案</option></select></label><label>文本编码<select id="eng-encoding"><option value="utf-8" '+(state.encoding==='utf-8'?'selected':'')+'>UTF-8</option><option value="gb18030" '+(state.encoding==='gb18030'?'selected':'')+'>GB18030</option></select></label><label>来源备注（可选）<input id="eng-source-note" maxlength="240" value="'+e(state.source_note)+'" placeholder="工程版本、归档位置或日期依据"></label></div><p>选择 .syr、.mrp、.par、.twr。文件仅在浏览器中读取，单文件上限5 MiB、每批20 MiB。</p><label class="eng-check"><input id="eng-confirm-bundle" type="checkbox">我确认本次选择的文件属于所选方案的同一工程批次</label><div class="eng-actions">'+btn('选择报告文件','pick','primary',state.busy?'disabled':'')+btn('选择工程目录','directory','',state.busy?'disabled':'')+btn('加载两方案ISE示例','samples','',state.busy?'disabled':'')+(state.busy?btn('取消处理','cancel'):btn('清空复核','clear'))+'</div><input id="eng-files" type="file" accept=".syr,.mrp,.par,.twr,.txt" multiple hidden><input id="eng-directory" type="file" webkitdirectory multiple hidden>'+(state.busy?'<p role="status">正在读取和校验，请稍候…</p>':'')+(state.errors.length?'<div class="errors" role="alert"><strong>此次导入未完成</strong><ul>'+state.errors.map(x=>'<li>'+e(x)+'</li>').join('')+'</ul><p>上一份有效结果保留在下方。</p></div>':'')+'</section>';}
+  function iseInputPanel(){return '<section class="panel panel-body eng-input-panel"><div class="panel-head"><h2>导入ISE资源与时序报告</h2><span class="chip purple">历史输入 · 本次解析</span></div><div class="eng-fields"><label>导入归属<select id="eng-variant"><option value="low-resource-ti" '+(state.variant_id==='low-resource-ti'?'selected':'')+'>低资源门限防护</option><option value="low-randomness-ti" '+(state.variant_id==='low-randomness-ti'?'selected':'')+'>低随机数门限防护</option><option value="all" '+(state.variant_id==='all'?'selected':'')+'>自动识别两方案</option></select></label><label>文本编码<select id="eng-encoding"><option value="utf-8" '+(state.encoding==='utf-8'?'selected':'')+'>UTF-8</option><option value="gb18030" '+(state.encoding==='gb18030'?'selected':'')+'>GB18030</option></select></label><label>来源备注（可选）<input id="eng-source-note" maxlength="240" value="'+e(state.source_note)+'" placeholder="工程版本、归档位置或日期依据"></label></div><p>选择 .syr、.mrp、.par、.twr。文件仅在浏览器中读取，单文件上限5 MiB、每批20 MiB。</p>'+(state.kind==='ise'?'<p>自动识别支持工程目录及已收录报告的SHA-256匹配。其他文件可按方案分别导入，两方案结果同时保留。</p>':'')+'<label class="eng-check"><input id="eng-confirm-bundle" type="checkbox">手动归属时，确认所选文件属于该方案的同一工程批次</label><div class="eng-actions">'+btn('选择报告文件','pick','primary',state.busy?'disabled':'')+btn('选择工程目录','directory','',state.busy?'disabled':'')+btn('加载两方案ISE示例','samples','',state.busy?'disabled':'')+(state.busy?btn('取消处理','cancel'):btn('清空复核','clear'))+'</div><input id="eng-files" type="file" accept=".syr,.mrp,.par,.twr,.txt" multiple hidden><input id="eng-directory" type="file" webkitdirectory multiple hidden>'+(state.busy?'<p role="status">正在读取和校验，请稍候…</p>':'')+(state.errors.length?'<div class="errors" role="alert"><strong>此次导入未完成</strong><ul>'+state.errors.map(x=>'<li>'+e(x)+'</li>').join('')+'</ul><p>上一份有效结果保留在下方。</p></div>':'')+'</section>';}
   function iseResults(){
     const records=state.records.filter(r=>r.evidence_kind==='historical_ise_report');
     if(!records.length)return '<section class="panel panel-body eng-empty"><h2>ISE工程报告解析</h2><p>加载两方案ISE示例，按综合、映射、布局布线和时序阶段展示实现指标，并保留文件校验与原文依据。</p></section>';
@@ -113,7 +138,7 @@
     document.addEventListener('change',async event=>{
       const id=event.target.id;
       if(event.target.dataset.selectionField){updateSelectionDraft(event.target);return;}
-      if(id==='eng-variant'){state.variant_id=event.target.value;cancel(true);}
+      if(id==='eng-variant'){state.variant_id=event.target.value;cancel(state.kind!=='ise');}
       else if(id==='eng-encoding'){state.encoding=event.target.value;cancel();}
       else if(id==='eng-files'||id==='eng-directory'){
         let files=[...event.target.files];event.target.value='';
