@@ -1,5 +1,6 @@
 (function (root) {
   'use strict';
+  const projectDocument = {title:'AES侧信道防护对比与报告系统项目文档'};
   const conditions = {
     source_id: 'liu-2025-thesis', source_section: '5.8.2', board: 'SAKURA-X',
     device: 'Kintex-7 xc7k160tfbg676-1', scope: 'PicoScope 5244B',
@@ -33,15 +34,15 @@
     }
   };
   const sources = [
-    {id:'liu-2025-thesis', title:'AES 侧信道防护对比与报告系统 · 最终项目文档', author:'SSS 小队', year:2026, type:'项目文档', note:'案例结构、检测图、性能表及参考文献按最终项目文档关联；参考文献见文档第 36-37 页。'},
+    {id:'liu-2025-thesis', title:projectDocument.title, author:'SSS 小队', year:2026, type:'项目文档', note:'集中呈现方案结构、检测图、性能表与参考文献。'},
     {id:'giii-guide', title:'SASEBO-GIII Quick Start Guide Version 1.0', author:'AIST', year:2013, type:'设备资料', note:'项目文档图 3-4、图 3-6 对应的拨码与测量连接资料。'},
-    {id:'giii-spec', title:'Side-channel Attack Standard Evaluation Board SASEBO-GIII Specification: Version 1.1', author:'AIST', year:2013, type:'设备资料', reference_number:4, note:'对应最终文档参考文献 [4]，用于板卡功能与接口说明。'},
+    {id:'giii-spec', title:'Side-channel Attack Standard Evaluation Board SASEBO-GIII Specification: Version 1.1', author:'AIST', year:2013, type:'设备资料', reference_number:4, note:'对应项目文档参考文献 [4]，用于板卡功能与接口说明。'},
     {id:'gii-workflow', title:'SASEBO-GII采集流程_LYG0620', author:'项目提供材料', type:'采集资料', note:'程序配置、GII 通道与触发接线的配套操作材料。'},
-    {id:'provided-photos', title:'设备照片、现场波形照片与采集截图', author:'项目提供材料', type:'照片与截图', note:'对应项目文档中的设备与采集记录；未将这些画面认定为本次软件运行新增的测量。'}
+    {id:'provided-photos', title:'设备照片、现场波形照片与采集截图', author:'项目提供材料', type:'照片与截图', note:'展示项目设备连接、现场波形及采集界面，采集参数随图像记录列示。'}
   ];
   const referenceDocument = {
   "filename": "SSS小队_AES 侧信道防护对比与报告系统_项目文档.pdf",
-  "title": "AES 侧信道防护对比与报告系统 · 最终项目文档",
+  "title": projectDocument.title,
   "author": "SSS 小队",
   "sha256": "00d70653ceaac83e081aad0b9afc6d0a98a284e4eec93b4131bc8fd3745f6255",
   "reference_pdf_pages": [
@@ -122,6 +123,56 @@
     "text": "Yao F, Chen H, Wei Y, et al. Optimizing aes threshold implementation under the glitch-extended probing model[J]. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems, 2024, 43(7): 1984-1997."
   }
 ];
+  const comparisonReferences = [
+    {
+      id:'cmp-moradi-2011',label:'C1',source_reference_number:120,current_reference_numbers:[],
+      text:'Moradi A, Poschmann A, Ling S, et al. Pushing the limits: A very compact and a threshold implementation of AES[C]//Advances in Cryptology–EUROCRYPT 2011. Springer, 2011: 69-88.'
+    },
+    {
+      id:'cmp-bilgin-2014',label:'C2',source_reference_number:122,current_reference_numbers:[],
+      text:'Bilgin B, Gierlichs B, Nikova S, et al. A more efficient AES threshold implementation[C]//Progress in Cryptology–AFRICACRYPT 2014. Springer, 2014: 267-284.'
+    },
+    {
+      id:'cmp-bilgin-2015',label:'C3',source_reference_number:107,current_reference_numbers:[14],
+      text:'Bilgin B, Gierlichs B, Nikova S, et al. Trade-offs for threshold implementations illustrated on AES[J]. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems, 2015, 34(7): 1188-1200.'
+    },
+    {
+      id:'cmp-sugawara-2019',label:'C4',source_reference_number:123,current_reference_numbers:[],
+      text:'Sugawara T. 3-share threshold implementation of AES S-box without fresh randomness[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2019, 2019(1): 123-145.'
+    },
+    {
+      id:'cmp-gross-2016',label:'C5',source_reference_number:49,current_reference_numbers:[6],
+      text:'Groß H, Mangard S, Korak T. Domain-oriented masking: Compact masked hardware implementations with arbitrary protection order[J]. Cryptology ePrint Archive, 2016: 486.'
+    },
+    {
+      id:'cmp-shahmirzadi-2021',label:'C6',source_reference_number:72,current_reference_numbers:[10],
+      text:'Shahmirzadi A R, Moradi A. Re-consolidating first-order masking schemes: Nullifying fresh randomness[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2021, 2021(1): 305-342.'
+    },
+    {
+      id:'cmp-askeland-2022',label:'C7',source_reference_number:54,current_reference_numbers:[8],
+      text:'Askeland A, Dhooghe S, Nikova S, et al. Guarding the first order: The rise of AES maskings[C]//International Conference on Smart Card Research and Advanced Applications–CARDIS 2022. Springer, 2022: 103-122.'
+    },
+    {
+      id:'cmp-yao-2024',label:'C8',source_reference_number:124,current_reference_numbers:[16],
+      text:'Yao F, Chen H, Wei Y, et al. Optimizing AES threshold implementation under the glitch-extended probing model[J]. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems, 2024, 43(7): 1984-1997.'
+    },
+    {
+      id:'cmp-de-cnudde-2016',label:'C9',source_reference_number:141,current_reference_numbers:[],
+      text:'De Cnudde T, Reparaz O, Bilgin B, et al. Masking AES with shares in hardware[C]//International Conference on Cryptographic Hardware and Embedded Systems–CHES 2016. Springer, 2016: 194-212.'
+    },
+    {
+      id:'cmp-wegener-2018',label:'C10',source_reference_number:105,current_reference_numbers:[],
+      text:'Wegener F, De Meyer L, Moradi A. Spin me right round: Rotational symmetry for FPGA-specific AES[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2018, 2018(3): 596-626.'
+    },
+    {
+      id:'cmp-wegener-2020',label:'C11',source_reference_number:106,current_reference_numbers:[],
+      text:'Wegener F, De Meyer L, Moradi A. Spin me right round rotational symmetry for FPGA-specific AES: Extended version[J]. Journal of Cryptology, 2020, 33(3): 1114-1155.'
+    },
+    {
+      id:'cmp-shahmirzadi-records-2021',label:'C12',source_reference_number:140,current_reference_numbers:[],
+      text:'Shahmirzadi A R, Božilov D, Moradi A. New first-order secure AES performance records[J]. IACR Transactions on Cryptographic Hardware and Embedded Systems, 2021, 2021(2): 304-327.'
+    }
+  ];
   const documentAssetLocations = {
   "project-composition.png": {
     "pdf_page": 9,
@@ -298,6 +349,8 @@
       {
         id:'asic',number:'3-1',title:'ASIC 平台防护方案性能对比',
         headers:['设计方案','掩码分量个数','S 盒面积','S 盒周期数','AES 盒面积','AES 延迟','AES 周期数','额外随机数'],
+        rowReferences:[[],[],[14],[14],[],[6],[10],[10],[8],[16],[],[]],
+        rowComparisonReferences:[['cmp-moradi-2011'],['cmp-bilgin-2014'],['cmp-bilgin-2015'],['cmp-bilgin-2015'],['cmp-sugawara-2019'],['cmp-gross-2016'],['cmp-shahmirzadi-2021'],['cmp-shahmirzadi-2021'],['cmp-askeland-2022'],['cmp-yao-2024'],[],[]],
         rows:[
           ['Moradi 等人','3','—','—','11114','—','266','48'],
           ['Bilgin 等人','3','—','—','9102','—','246','44'],
@@ -316,6 +369,8 @@
       {
         id:'fpga',number:'3-2',title:'FPGA 平台防护方案性能对比',
         headers:['设计方案','slices','LUTs','FFs','BRAM','周期数','最大时钟频率','额外随机数'],
+        rowReferences:[[6],[6],[],[],[],[10],[],[],[]],
+        rowComparisonReferences:[['cmp-gross-2016'],['cmp-gross-2016'],['cmp-de-cnudde-2016'],['cmp-wegener-2018'],['cmp-wegener-2020'],['cmp-shahmirzadi-2021'],['cmp-shahmirzadi-records-2021'],[],[]],
         rows:[
           ['Gross 等人','433','894','726','0','216','110','28'],
           ['Gross 等人','351','792','754','0','246','134','18'],
@@ -330,7 +385,7 @@
       }
     ]
   };
-  const data = {version:'1.1.0', schemaVersion:'1.1', conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, documentAssetLocations,
+  const data = {version:'1.1.1', schemaVersion:'1.1', projectDocument, conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, comparisonReferences, documentAssetLocations,
     resourceEnvironment: {platform:'Spartan-6 XC6SLX75',tool:'ISE Design Suite 14.7',source_id:'liu-2025-thesis',table:'5.4'},
     asicEnvironment: {platform:'NanGate 45nm',tool:'Design Compiler v2016.03',source_id:'liu-2025-thesis',table:'5.3'}
   };
