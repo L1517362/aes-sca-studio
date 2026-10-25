@@ -24,3 +24,6 @@
 .eng-kind-bar{margin-bottom:18px}.eng-prolead-summary,.eng-prolead-record{margin:18px 0;overflow-wrap:anywhere;min-width:0}.eng-prolead-record details{margin:12px 0}.eng-prolead-record summary{cursor:pointer;font-weight:600}.eng-chart{width:100%;height:210px}.eng-chart polyline{fill:none;stroke:#7865e9;stroke-width:1.5}.eng-chart circle{fill:#e35a76}.eng-prolead-record .eng-warning{padding:10px;background:var(--bg);border-radius:8px}.eng-prolead-record td{vertical-align:top}.eng-prolead-record pre{white-space:pre-wrap;overflow-wrap:anywhere}
 
 .eng-selection-result,.eng-selection-candidate,.eng-last-selection{min-width:0;overflow-wrap:anywhere}.eng-selection-result pre{white-space:pre-wrap;overflow-wrap:anywhere}.eng-selection-candidate{margin:16px 0}.eng-selection-candidate .eng-table-wrap{max-width:100%}.eng-selection-candidate td{white-space:normal;overflow-wrap:anywhere}
+
+/* Full project name in the navigation and workspace heading. */
+.brand-symbol{flex-shrink:0}.brand>div{min-width:0}.brand-name{font-size:14px;line-height:1.5;letter-spacing:0}.brand-name>span{display:block}.page-header{flex-wrap:wrap;align-items:flex-start}.page-header>div:first-child{min-width:0;flex:1 1 400px}.header-actions{max-width:100%;flex-wrap:wrap}
