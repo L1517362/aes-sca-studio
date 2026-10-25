@@ -330,7 +330,7 @@
       }
     ]
   };
-  const data = {version:'1.0.1', schemaVersion:'1.1', conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, documentAssetLocations,
+  const data = {version:'1.1.0', schemaVersion:'1.1', conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, documentAssetLocations,
     resourceEnvironment: {platform:'Spartan-6 XC6SLX75',tool:'ISE Design Suite 14.7',source_id:'liu-2025-thesis',table:'5.4'},
     asicEnvironment: {platform:'NanGate 45nm',tool:'Design Compiler v2016.03',source_id:'liu-2025-thesis',table:'5.3'}
   };

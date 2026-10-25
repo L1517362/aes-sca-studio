@@ -146,7 +146,9 @@
   }
   function render(){
     const renderers={workspace,config:configPage,compare:comparePage,theory:theoryPage,hardware:hardwarePage,sources:sourcesPage,reports:reportsPage};
-    $('#app').innerHTML=shell(renderers[ui.route]());
+    const engineering=window.AESEngineeringUI;
+    const content=engineering?.active(ui.route)?engineering.render(ui.route):renderers[ui.route]();
+    $('#app').innerHTML=shell((engineering?.modeBar(ui.route)||'')+content);
     document.title=routeNames[ui.route]+' · AES 侧信道防护对比与报告系统';
   }
   function applyConfig(config,message){state={...C.newState(config),revision:state.revision+1,events:state.events};ui.errors=[];log(message,'config');persist();render();toast(message);}
@@ -289,5 +291,6 @@
   window.addEventListener('hashchange',()=>{const route=location.hash.slice(1);if(routeNames[route]&&ui.route!==route){ui.route=route;render();window.scrollTo(0,0);}});
   window.addEventListener('beforeunload',()=>objectURLs.forEach(url=>URL.revokeObjectURL(url)));
   $('#image-viewer').addEventListener('click',event=>{if(event.target===$('#image-viewer'))$('#image-viewer').close();});
+  window.AESEngineeringUI?.init({render,navigate,toast,saveBlob,core:C});
   render();
 })();
