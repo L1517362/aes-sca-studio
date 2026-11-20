@@ -102,21 +102,40 @@
   function compactConditions(){return '<div class="panel mini-section"><h3>'+icon('cpu')+'TVLA 检测条件</h3><dl class="definition-list"><dt>目标板卡</dt><dd>SAKURA-X</dd><dt>测量设备</dt><dd>PicoScope 5244B</dd><dt>采样率</dt><dd>250 MS/s</dd><dt>采集工作频率</dt><dd>3 MHz</dd><dt>检测阶数</dt><dd>一阶 · Welch t 检验</dd></dl><p class="figure-source" style="margin-top:12px">检测环境 · 与资源综合环境分别记录</p></div>';}
   function activity(){return '<div class="panel activity-panel"><div class="panel-head"><h2>本次操作记录</h2><span class="muted" style="font-size:9px">软件操作 · 北京时间</span></div><ul class="activity-list">'+state.events.slice(0,4).map(r=>'<li><span class="event-dot"></span><span>'+e(r.message)+'</span><time datetime="'+r.at+'">'+C.formatDate(r.at)+'</time></li>').join('')+'</ul></div>';}
   function finalsCase(){
+    const sliceLimit = D.areaReviewSliceLimit;
+    const areaBadge = slices => slices <= sliceLimit
+      ? '<span class="finals-fit">满足面积条件</span>'
+      : `<span class="finals-over">超出 ${slices - sliceLimit} slices</span>`;
+    const localSchemes = ['low-resource-ti', 'low-randomness-ti'].map(id => D.variants[id]);
+    const fpgaRows = D.reportPerformanceTables.tables.find(table => table.id === 'fpga').rows;
+    const fpgaSlices = new Map(fpgaRows.map(([scheme, slices]) => [scheme, Number(slices)]));
+    const literatureSchemes = [
+      ['Gross (246周期)', 'Gross 的 AES-simple'],
+      ['De Cnudde等人', 'De Cnudde 等的 d+1 分量掩码 AES'],
+      ['Shahmirzadi (0)', 'Shahmirzadi–Moradi 的无新鲜随机数 AES']
+    ];
     return `<section class="finals-case" aria-labelledby="finals-case-title">
       <div class="finals-case-visual" aria-hidden="true">
         <video class="finals-case-video" muted playsinline loop preload="none"></video>
       </div>
       <div class="finals-case-body">
-        <h2 id="finals-case-title">200 slices 面积约束复核</h2>
+        <h2 id="finals-case-title">${sliceLimit} slices 面积约束复核</h2>
         <p class="finals-case-context">Spartan-6 XC6SLX75 · PAR 布局布线</p>
-        <ul class="finals-case-metrics">
-          <li><span>低资源门限防护</span><strong>195 slices</strong><span class="finals-fit">满足面积条件</span></li>
-          <li><span>低随机数门限防护</span><strong>212 slices</strong><span class="finals-over">超出面积上限 12 slices</span></li>
+        <ul class="finals-case-metrics" aria-label="项目防护方案">
+          ${localSchemes.map(({name, slices}) =>
+            `<li><span>${e(name)}</span><strong>${slices} slices</strong>${areaBadge(slices)}</li>`
+          ).join('')}
         </ul>
         <p class="finals-case-comparison">
-          <strong>计算阶段额外新鲜随机量为 0 bit/周期。</strong>
-          FPGA 对照表中，该方案占用面积低于 Gross 的 AES-simple（351 slices）、De Cnudde 等的 d+1 分量掩码 AES（418 slices）和 Shahmirzadi–Moradi 的无新鲜随机数 AES（631 slices）。
+          <strong>低随机数方案计算阶段额外新鲜随机量为 ${D.variants['low-randomness-ti'].fresh_random_bits_per_cycle} bit/周期。</strong>
+          以下三项取自 FPGA 对照表。
         </p>
+        <ul class="finals-literature" aria-label="文献方案面积对照">
+          ${literatureSchemes.map(([scheme, label]) => {
+            const slices = fpgaSlices.get(scheme);
+            return `<li><span class="finals-literature-name">${e(label)}</span><strong>${slices} slices</strong>${areaBadge(slices)}</li>`;
+          }).join('')}
+        </ul>
         <button class="button soft" data-eng-action="open-ise-review">打开工程复核 ${icon('arrow')}</button>
       </div>
       ${motionButton('case','finals-motion-toggle')}

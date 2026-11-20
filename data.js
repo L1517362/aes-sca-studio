@@ -409,7 +409,8 @@
       '低资源门限防护', '低随机数门限防护'
     ]
   };
-  const data = {version:'1.1.2', schemaVersion:'1.1', projectDocument, conditions, variants, sources, notes, publicReference, reportPerformanceTables, comparisonDisplayNames, referenceDocument, references, comparisonReferences, documentAssetLocations,
+  const areaReviewSliceLimit = 250;
+  const data = {areaReviewSliceLimit, version:'1.1.2', schemaVersion:'1.1', projectDocument, conditions, variants, sources, notes, publicReference, reportPerformanceTables, comparisonDisplayNames, referenceDocument, references, comparisonReferences, documentAssetLocations,
     resourceEnvironment: {platform:'Spartan-6 XC6SLX75',tool:'ISE Design Suite 14.7',source_id:'liu-2025-thesis',table:'5.4'},
     asicEnvironment: {platform:'NanGate 45nm',tool:'Design Compiler v2016.03',source_id:'liu-2025-thesis',table:'5.3'}
   };
