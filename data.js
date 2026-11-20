@@ -17,7 +17,7 @@
       slices: 195, lut: 524, ff: 503, bram: 0, cycles: 236, max_clock_mhz: 145,
       asic_ge: 6806, fresh_random_bits_per_cycle: 22,
       randomness: '每周期 22 比特新鲜额外随机量',
-      initialization: '采用论文规定的掩码与随机量条件；初始化总量未在当前案例中量化。',
+      initialization: '采用对应的掩码初始化与随机源条件，项目未量化初始化总量。',
       detail: '以两分量门限实现为基础，在寄存器分层和分量边界内进行 ANF 化简、乘积项拆分与公共逻辑复用。'
     },
     'low-randomness-ti': {
@@ -29,7 +29,7 @@
       slices: 212, lut: 561, ff: 563, bram: 0, cycles: 236, max_clock_mhz: 125,
       asic_ge: 7671, fresh_random_bits_per_cycle: 0,
       randomness: '额外新鲜随机量列为 0；仍需随机初始化与复用机制',
-      initialization: '23 比特可复用随机量及 8 比特 guard 初始化；按论文的更新规则使用。',
+      initialization: '23 比特可复用随机量及 8 比特 guard 初始化，计算期间按设计更新。',
       detail: '通过 Changing-of-the-Guards 机制组织随机量复用与警卫更新，以额外逻辑和寄存器开销换取较低的持续新鲜随机量需求。'
     }
   };
@@ -331,11 +331,11 @@
   }
 };
   const notes = [
-    'TVLA 原图来自既有研究。基线报告 100000 条曲线，防护报告 10000000 条曲线；两组精确样本数与逐点 t 值未提供。',
-    '样本量和纵轴范围不同，不以曲线高度或样本量之比计算安全性提升百分比；一阶未越阈不构成完全安全结论。',
+    '项目一阶 TVLA 检测记录中，未防护基线为 100000 条曲线，防护案例为 10000000 条曲线。系统按检测图和样本总量展示结论。',
+    '各案例分别按其采样规模、纵轴范围和 ±4.5 阈值解读。一阶结论限于记录的检测条件。',
     'TVLA 使用 SAKURA-X / Kintex-7 测量条件；FPGA 资源使用 Spartan-6 XC6SLX75 / ISE 14.7，二者分别记录。',
-    '低随机数方案仍依赖 23 比特复用随机量、8 比特 guard 初始化与更新机制；原表额外随机数列为 0 不等于没有随机性。',
-    '原始采集波形规模约 500GB 为用户提供的估计，当前未随作品提供。截图不替代原始轨迹，当前运行执行案例检查与已有结果加载。'
+    '低随机数方案仍依赖 23 比特复用随机量、8 比特 guard 初始化与更新机制；计算阶段持续新鲜随机输入为 0。',
+    '网页使用已记录的检测图与条件完成配置校验、结果对比和报告生成。原始采集轨迹独立于网页案例。'
   ];
   const publicReference = {slices:203,lut:476,ff:529,bram_kbit:108,cycles:216,max_clock_mhz:138,throughput_mbps:81.7,random_bits:8};
   const reportPerformanceTables = {
@@ -392,7 +392,24 @@
       }
     ]
   };
-  const data = {version:'1.1.1', schemaVersion:'1.1', projectDocument, conditions, variants, sources, notes, publicReference, reportPerformanceTables, referenceDocument, references, comparisonReferences, documentAssetLocations,
+  // Presentation labels are separate from archived comparison rows and citations.
+  const comparisonDisplayNames = {
+    asic: [
+      '紧凑三分量 AES（266 周期）', '高效三分量 AES（9102 GE）',
+      '三分量 AES（44 bit/周期）', '三分量 AES（32 bit/周期）',
+      '三分量零刷新 AES', 'AES-simple（DOM）',
+      '两分量 AES（1 bit/周期）', '无新鲜随机数两分量 AES',
+      '警卫换岗 AES（串行 Design I）', '优化两分量 AES（236 周期）',
+      '低资源门限防护', '低随机数门限防护'
+    ],
+    fpga: [
+      'DOM AES（216 周期）', 'AES-simple（DOM）', '多分量掩码 AES',
+      '旋转对称 AES（18 bit/周期）', '旋转对称 AES（6 bit/周期）',
+      '无新鲜随机数两分量 AES', 'BRAM 掩码 AES（108 kbit）',
+      '低资源门限防护', '低随机数门限防护'
+    ]
+  };
+  const data = {version:'1.1.2', schemaVersion:'1.1', projectDocument, conditions, variants, sources, notes, publicReference, reportPerformanceTables, comparisonDisplayNames, referenceDocument, references, comparisonReferences, documentAssetLocations,
     resourceEnvironment: {platform:'Spartan-6 XC6SLX75',tool:'ISE Design Suite 14.7',source_id:'liu-2025-thesis',table:'5.4'},
     asicEnvironment: {platform:'NanGate 45nm',tool:'Design Compiler v2016.03',source_id:'liu-2025-thesis',table:'5.3'}
   };

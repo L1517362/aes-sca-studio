@@ -19,7 +19,7 @@
   function candidates(records,groups,variants,input){
     return Object.values(variants).map(base=>{
       const shared={variant_id:base.id,name:base.name,fresh_bits:base.fresh_random_bits_per_cycle,reusable_bits:base.id==='low-randomness-ti'?23:null,guard_bits:base.id==='low-randomness-ti'?8:null,random_source:'当前项目案例随机量条件'};
-      if(input.source==='baseline')return {...shared,source:'当前正文FPGA性能表',source_kind:'baseline',platform:'fpga',device:null,stage:'documented_fpga',association_state:'documented_values_device_unconfirmed',metrics:{slices:base.slices,lut:base.lut,ff:base.ff,cycles:base.cycles,frequency_mhz:base.max_clock_mhz,period_ns:null},frequency_kind:'documented_reference',signed_timing:false,record_id:null,sha256:null};
+      if(input.source==='baseline')return {...shared,source:'项目 FPGA 性能表',source_kind:'baseline',platform:'fpga',device:null,stage:'documented_fpga',association_state:'documented_values_device_unconfirmed',metrics:{slices:base.slices,lut:base.lut,ff:base.ff,cycles:base.cycles,frequency_mhz:base.max_clock_mhz,period_ns:null},frequency_kind:'documented_reference',signed_timing:false,record_id:null,sha256:null};
       const rs=records.filter(r=>r.evidence_kind==='historical_ise_report'&&r.variant_id===base.id&&r.stage===input.stage);
       if(rs.length!==1)return {...shared,source:'历史ISE '+input.stage,source_kind:'parsed',platform:'fpga',device:null,stage:input.stage,association_state:rs.length?'ambiguous':'missing',metrics:{},signed_timing:false,record_id:null,sha256:null};
       const r=rs[0],g=groups.find(g=>g.record_ids.includes(r.file_id));

@@ -1,12 +1,17 @@
 /* The UI, comparison and exports all read the same canonical case record. */
 (function () {
   'use strict';
-  const D=window.AESData, C=window.AESCore, A=window.AESAssets, M=window.AESCore.displayAssetManifest(window.AESAssetManifest);
+  const D=window.AESData, C=window.AESCore, A=window.AESAssets, M=window.AESAssetManifest;
   const e=C.escapeHTML, $=selector=>document.querySelector(selector);
   const STORAGE_KEY='sca-studio:config:1.1';
+  const motionPreference = window.matchMedia('(min-width: 701px) and (prefers-reduced-motion: no-preference)');
+  const motionLayers = {
+    system: { selector: '.system-backdrop-video', source: 'workspace-circuit.mp4', label: '全局背景动效', paused: false },
+    case: { selector: '.finals-case-video', source: 'case-data-wave.mp4', label: '复核卡片动效', paused: false }
+  };
   const systemTitle='AES侧信道防护对比与报告系统';
   const projectDocumentTitle=systemTitle+'项目文档';
-  const routeNames={workspace:'评估工作台',config:'项目配置',compare:'结果对比',theory:'理论与结构',hardware:'硬件与采集',sources:'案例与来源',reports:'报告中心'};
+  const routeNames={workspace:'评估工作台',config:'项目配置',compare:'结果对比',theory:'理论与结构',hardware:'硬件与采集',sources:'项目材料',reports:'报告中心'};
   const paths={
     shield:'M12 3 3.5 7v5c0 5 8.5 10 8.5 10s8.5-5 8.5-10V7L12 3ZM7 13h3l1.5-4 2 8 1.5-4h2',
     grid:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
@@ -18,7 +23,7 @@
     report:'M5 3h10l4 4v14H5V3Zm9 0v5h5M8 12h8m-8 4h6',
     upload:'M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6',
     download:'M12 3v13m-5-5 5 5 5-5M4 15v6h16v-6',
-    play:'m8 4 12 8-12 8V4Z', check:'m5 12 4 4L19 6', arrow:'M4 12h16m-5-5 5 5-5 5',
+    play:'m8 4 12 8-12 8V4Z', pause:'M9 5v14M15 5v14', check:'m5 12 4 4L19 6', arrow:'M4 12h16m-5-5 5 5-5 5',
     chevron:'m9 5 7 7-7 7', eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm7 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0',
     info:'M12 8h.01M12 11v6M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
     activity:'M2 12h5l3-8 4 16 3-8h5', lock:'M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0v4M12 14v3',
@@ -40,63 +45,107 @@
   let toastTimer;
   const objectURLs=new Set();
   function log(message,type='info'){state.events.unshift({at:new Date().toISOString(),message,type,variant:state.config.selected_protection});state.events=state.events.slice(0,60);}
-  log(restored?'已恢复上次项目配置；运行状态等待本次校验。':'已载入内置文献案例，等待结果校验与加载。');
+  log(restored?'已恢复上次项目配置。':'已载入内置防护案例配置。');
   function toast(message,error=false){const node=$('#toast');clearTimeout(toastTimer);node.textContent=message;node.className='toast visible'+(error?' error':'');toastTimer=setTimeout(()=>node.className='toast',4800);}
   function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state.config));}catch{toast('浏览器未允许本地保存；当前会话仍可使用全部功能。');}}
   function navigate(route){if(!routeNames[route])route='workspace';ui.route=route;location.hash=route;render();window.scrollTo({top:0,behavior:'instant'});}
   function current(){return D.variants[state.config.selected_protection];}
-  function assetTitle(file){const meta=M[file]||{};return meta.label||meta.item||file;}
-  function assetSource(file){const meta=M[file]||{};if(D.documentAssetLocations[file]?.item)return projectDocumentTitle;return (meta.source_title||meta.source||'项目材料')+(meta.item?' · '+meta.item:'');}
-  function assetCaption(file){const meta=M[file]||{};const categories={structure:'方案结构图',tvla:'检测结果图',formula:'技术公式',table:'资源数据表',hardware:'设备与采集材料'};return (categories[meta.category]||'案例材料')+(meta.item?' · '+meta.item:'');}
+  const materialNames = {
+    'aes-flow.png':'AES 加密流程', 'sbox-integrated.png':'AES S 盒逻辑整合', 'cmt-tree.png':'组合乘积项识别',
+    'sbox-low-area.png':'低资源门限防护 S 盒', 'sbox-low-random.png':'低随机数门限防护 S 盒',
+    'aes-low-area.png':'低资源门限防护数据通路', 'aes-low-random.png':'低随机数门限防护数据通路',
+    'tvla-area-baseline.png':'低资源案例的未防护对照', 'tvla-area-protected.png':'低资源门限防护一阶 TVLA',
+    'tvla-area-growth.png':'低资源案例的未防护样本趋势', 'tvla-random-baseline.png':'低随机数案例的未防护对照',
+    'tvla-random-protected.png':'低随机数门限防护一阶 TVLA', 'tvla-random-growth.png':'低随机数案例的未防护样本趋势',
+    'table-gates.png':'S 盒逻辑门资源', 'hardware-photo.jpg':'侧信道测量设备与连接', 'acquisition.png':'采集界面与完成记录',
+    'eq-5-2.png':'非线性函数分量拆分', 'eq-5-3.png':'整合后的 S 盒逻辑函数', 'eq-5-4.png':'寄存器与共享逻辑关系',
+    'eq-5-5.png':'组合逻辑的分量构造', 'eq-5-6.png':'低资源实现分量构造', 'eq-5-7.png':'低资源实现分量重组',
+    'eq-5-8.png':'低资源 S 盒分量计算', 'eq-5-9.png':'低随机数 S 盒逻辑拆分', 'eq-5-10.png':'警卫换岗分量构造'
+  };
+  const legacyPerformanceImages = new Set(['table-fpga.png','table-asic.png']);
+  function assetTitle(file){return materialNames[file]||M[file]?.label||file;}
+  function assetCaption(file){
+    const categories={structure:'方案结构图',tvla:'检测结果图',formula:'逻辑表达式',table:'资源数据表',hardware:'设备与采集记录'};
+    return categories[M[file]?.category]||'项目材料';
+  }
   function image(file,title='',extraClass=''){
     if(!A[file])return '<p class="muted">缺少图片：'+e(file)+'</p>';
     return '<button class="figure-button '+extraClass+'" data-action="view-image" data-file="'+e(file)+'" aria-label="放大查看'+e(title||assetTitle(file))+'"><img src="'+A[file]+'" alt="'+e(title||assetTitle(file))+'" loading="lazy"><span class="figure-zoom">'+icon('expand')+'</span></button>';
   }
-  function header(title,description,actions=''){return '<header class="page-header"><div><div class="eyebrow">AES SIDE-CHANNEL EVALUATION</div><h1>'+e(title)+'</h1><p>'+e(description)+'</p></div><div class="header-actions">'+actions+'</div></header>';}
+  function header(title,description,actions=''){
+    const backgrounds = { workspace: ' finals-home-header', compare: ' finals-review-header' };
+    return '<header class="page-header'+(backgrounds[ui.route]||'')+'"><div><div class="eyebrow">AES SIDE-CHANNEL EVALUATION</div><h1>'+e(title)+'</h1><p>'+e(description)+'</p></div><div class="header-actions">'+actions+'</div></header>';
+  }
   function banner(text){return '<div class="info-banner">'+icon('info')+'<div>'+text+'</div></div>';}
   function section(title,description='',right=''){return '<div class="section-heading"><div><h2>'+e(title)+'</h2>'+(description?'<p>'+e(description)+'</p>':'')+'</div>'+right+'</div>';}
+  function motionButton(layer, style){
+    return '<button class="motion-toggle '+style+'" type="button" data-action="toggle-motion" data-motion="'+layer+'" hidden></button>';
+  }
   function shell(content){
     const nav=[['workspace','grid'],['config','folder'],['compare','compare'],['theory','layers'],['hardware','cpu'],['sources','book'],['reports','report']];
-    return '<div class="app-layout"><aside class="sidebar" id="sidebar"><a class="brand" href="#workspace" aria-label="AES侧信道防护对比与报告系统评估工作台"><span class="brand-symbol">'+icon('shield')+'</span><div><div class="brand-name"><span>AES侧信道防护</span><span>对比与报告系统</span></div><div class="brand-subtitle">硬件安全 · 案例评估工作台</div></div></a><div class="nav-label">WORKSPACE / 工作空间</div><nav aria-label="主要导航">'+nav.map(([id,i])=>'<button class="nav-item '+(ui.route===id?'active':'')+'" data-action="navigate" data-route="'+id+'" '+(ui.route===id?'aria-current="page"':'')+'>'+icon(i)+'<span>'+routeNames[id]+'</span>'+(id==='sources'?'<span class="nav-count">'+Object.keys(M).length+'</span>':'')+'</button>').join('')+'</nav><div class="sidebar-bottom"><div class="local-card"><div class="local-title"><span class="status-dot"></span> 本地案例模式</div><p>数据保留在当前浏览器<br>依据已有文献与实验材料展示</p></div><div class="sidebar-footer"><span>AES-128</span><span>v'+D.version+'</span></div></div></aside><div class="mobile-overlay" data-action="close-menu"></div><div class="body-shell"><div class="topbar"><div class="breadcrumb"><button class="mobile-menu" data-action="toggle-menu" aria-label="展开导航">'+icon('menu')+'</button><span>工作空间</span>'+icon('chevron')+'<strong>'+routeNames[ui.route]+'</strong></div><div class="topbar-right"><span class="topbar-tag"><span class="status-dot"></span>已有结果 · 本地展示</span><span class="top-divider"></span><button class="help-button" data-action="navigate" data-route="sources">'+icon('help')+'资料说明</button><span class="avatar" title="AES-128 案例">AES</span></div></div><main class="content" id="main" tabindex="-1">'+content+'<footer class="footer"><span>'+icon('lock')+' 本地运行 · 无需账户 · 支持离线使用</span><span>图表可追溯 · 方案可比较 · v'+D.version+'</span></footer></main></div></div>';
+    return '<div class="app-layout"><aside class="sidebar" id="sidebar"><a class="brand" href="#workspace" aria-label="AES侧信道防护对比与报告系统评估工作台"><span class="brand-symbol">'+icon('shield')+'</span><div><div class="brand-name"><span>AES侧信道防护</span><span>对比与报告系统</span></div><div class="brand-subtitle">硬件安全 · 案例评估工作台</div></div></a><div class="nav-label">WORKSPACE / 工作空间</div><nav aria-label="主要导航">'+nav.map(([id,i])=>'<button class="nav-item '+(ui.route===id?'active':'')+'" data-action="navigate" data-route="'+id+'" '+(ui.route===id?'aria-current="page"':'')+'>'+icon(i)+'<span>'+routeNames[id]+'</span>'+(id==='sources'?'<span class="nav-count">'+materialEntries().length+'</span>':'')+'</button>').join('')+'</nav><div class="sidebar-bottom"><div class="local-card"><div class="local-title"><span class="status-dot"></span> 本地案例模式</div><p>数据保留在当前浏览器<br>加载项目检测结果与工程指标</p></div><div class="sidebar-footer"><span>AES-128</span><span>v'+D.version+'</span></div></div></aside><div class="mobile-overlay" data-action="close-menu"></div><div class="body-shell"><div class="topbar"><div class="breadcrumb"><button class="mobile-menu" data-action="toggle-menu" aria-label="展开导航">'+icon('menu')+'</button><span>工作空间</span>'+icon('chevron')+'<strong>'+routeNames[ui.route]+'</strong></div><div class="topbar-right">'+motionButton('system','system-motion-toggle')+'<span class="topbar-tag"><span class="status-dot"></span>已有结果 · 本地展示</span><span class="top-divider"></span><button class="help-button" data-action="navigate" data-route="sources">'+icon('help')+'资料说明</button><span class="avatar" title="AES-128 案例">AES</span></div></div><main class="content" id="main" tabindex="-1">'+content+'<footer class="footer"><span>'+icon('lock')+' 本地运行 · 无需账户 · 支持离线使用</span><span>图表可追溯 · 方案可比较 · v'+D.version+'</span></footer></main></div></div>';
   }
   function workflow(){
     const done=[true,!!state.runs.baseline,!!state.runs.protected,state.compared,!!state.exportedAt];
-    const names=['导入项目配置','运行未防护基线','运行防护版本','对比结果','导出报告'];
+    const names=['导入项目配置','加载未防护基线','加载防护结果','对比结果','导出报告'];
     const actions=['open-import','run-baseline','run-protected','compare','go-reports'];
-    const notes=['案例已就绪','校验并加载原图','加载当前防护方案','检测现象与资源','图像与来源随附'];
+    const notes=['案例已就绪','校验并加载原图','加载当前防护方案','检测现象与资源','嵌入检测图和工程指标'];
     const first=done.findIndex(x=>!x);
-    return '<div class="panel step-panel"><div class="panel-head"><h2>评估流程</h2>'+chip(done.filter(Boolean).length+' / 5 步就绪','purple')+'</div><div class="workflow">'+names.map((name,i)=>'<button class="step '+(done[i]?'done':i===first?'current':'')+'" data-action="'+actions[i]+'" '+(ui.busy?'disabled':'')+'><span class="step-circle">'+(done[i]?icon('check'):String(i+1).padStart(2,'0'))+'</span><span><span class="step-title">'+name+'</span><span class="step-note">'+notes[i]+'</span></span></button>').join('')+'</div><div class="workflow-footer"><span>'+icon('info')+'运行操作用于校验与加载已有案例结果</span><span class="mode-detail">'+icon('book')+' AES-128 · 一阶 TVLA 案例</span></div></div>';
+    return '<div class="panel step-panel"><div class="panel-head"><h2>评估流程</h2>'+chip(done.filter(Boolean).length+' / 5 步就绪','purple')+'</div><div class="workflow">'+names.map((name,i)=>'<button class="step '+(done[i]?'done':i===first?'current':'')+'" data-action="'+actions[i]+'" '+(ui.busy?'disabled':'')+'><span class="step-circle">'+(done[i]?icon('check'):String(i+1).padStart(2,'0'))+'</span><span><span class="step-title">'+name+'</span><span class="step-note">'+notes[i]+'</span></span></button>').join('')+'</div><div class="workflow-footer"><span>'+icon('info')+'工作台校验配置并加载已有检测结果</span><span class="mode-detail">'+icon('book')+' AES-128 · 一阶 TVLA 案例</span></div></div>';
   }
   function variantCards(){return '<div class="scheme-grid">'+Object.values(D.variants).map(v=>'<button class="scheme-card '+(current().id===v.id?'selected':'')+'" data-action="select-variant" data-id="'+v.id+'" aria-pressed="'+(current().id===v.id)+'" '+(ui.busy?'disabled':'')+'><span class="scheme-marker">'+(current().id===v.id?icon('check'):'')+'</span><div class="scheme-label">'+v.english+'</div><h3>'+v.name+'</h3><p>'+v.description+'</p><div class="scheme-meta"><span><b>'+v.slices+'</b> slices</span><span><b>'+v.max_clock_mhz+'</b> MHz</span><span><b>'+v.fresh_random_bits_per_cycle+'</b> bit / 周期*</span></div></button>').join('')+'</div>';}
   function resultCard(kind){
     const v=current(),baseline=kind==='baseline',run=state.runs[kind],file=baseline?v.baselineAsset:v.protectedAsset;
     const count=baseline?'100,000':'10,000,000',title=baseline?'未防护基线':v.name;
-    return '<article class="panel result-card '+(run?'':'pending')+'"><div class="result-top"><div><h3>'+title+'</h3><p class="result-meta">一阶 TVLA · 案例记录 '+count+' 条曲线</p></div>'+chip('检测结果图','gray')+'</div>'+image(file,title+' TVLA 检测结果图')+'<div class="result-status">'+chip(run?(baseline?'检测现象：明显越阈':'检测现象：一阶未越阈'):'图片预览 · 待加载',run?(baseline?'red':'green'):'gray')+'<span class="muted">阈值 ±4.5</span></div><p class="figure-source">'+(baseline?'基线结果':'防护结果')+' · <a href="#sources">查看来源</a></p><p class="result-caption">'+(baseline?'基线图展示记录条件下的统计差异。':'结论仅适用于记录样本量与一阶检测条件。')+'</p><div class="result-actions">'+button((ui.busy===kind?'<span class="loading-indicator"></span>':icon(run?'refresh':'play'))+(run?'重新加载':baseline?'运行未防护基线':'运行防护版本'),'run-'+kind,run?'':'soft',!!ui.busy)+'</div></article>';
+    return '<article class="panel result-card '+(run?'':'pending')+'"><div class="result-top"><div><h3>'+title+'</h3><p class="result-meta">一阶 TVLA · 案例记录 '+count+' 条曲线</p></div>'+chip('检测结果图','gray')+'</div>'+image(file,title+' TVLA 检测结果图')+'<div class="result-status">'+chip(run?(baseline?'检测现象：明显越阈':'检测现象：一阶未越阈'):'案例图预览',run?(baseline?'red':'green'):'gray')+'<span class="muted">阈值 ±4.5</span></div><p class="figure-source">'+(baseline?'基线结果':'防护结果')+' · <a href="#sources">查看项目材料</a></p><p class="result-caption">'+(baseline?'基线图展示记录条件下的统计差异。':'结论仅适用于记录样本量与一阶检测条件。')+'</p><div class="result-actions">'+button((ui.busy===kind?'<span class="loading-indicator"></span>':icon(run?'refresh':'play'))+(run?'重新加载':baseline?'加载未防护基线':'加载防护结果'),'run-'+kind,run?'':'soft',!!ui.busy)+'</div></article>';
   }
   function compactConditions(){return '<div class="panel mini-section"><h3>'+icon('cpu')+'TVLA 检测条件</h3><dl class="definition-list"><dt>目标板卡</dt><dd>SAKURA-X</dd><dt>测量设备</dt><dd>PicoScope 5244B</dd><dt>采样率</dt><dd>250 MS/s</dd><dt>采集工作频率</dt><dd>3 MHz</dd><dt>检测阶数</dt><dd>一阶 · Welch t 检验</dd></dl><p class="figure-source" style="margin-top:12px">检测环境 · 与资源综合环境分别记录</p></div>';}
   function activity(){return '<div class="panel activity-panel"><div class="panel-head"><h2>本次操作记录</h2><span class="muted" style="font-size:9px">软件操作 · 北京时间</span></div><ul class="activity-list">'+state.events.slice(0,4).map(r=>'<li><span class="event-dot"></span><span>'+e(r.message)+'</span><time datetime="'+r.at+'">'+C.formatDate(r.at)+'</time></li>').join('')+'</ul></div>';}
+  function finalsCase(){
+    return `<section class="finals-case" aria-labelledby="finals-case-title">
+      <div class="finals-case-visual" aria-hidden="true">
+        <video class="finals-case-video" muted playsinline loop preload="none"></video>
+      </div>
+      <div class="finals-case-body">
+        <h2 id="finals-case-title">200 slices 面积约束复核</h2>
+        <p class="finals-case-context">Spartan-6 XC6SLX75 · PAR 布局布线</p>
+        <ul class="finals-case-metrics">
+          <li><span>低资源门限防护</span><strong>195 slices</strong><span class="finals-fit">满足面积条件</span></li>
+          <li><span>低随机数门限防护</span><strong>212 slices</strong><span class="finals-over">超出面积上限 12 slices</span></li>
+        </ul>
+        <p class="finals-case-comparison">
+          <strong>计算阶段额外新鲜随机量为 0 bit/周期。</strong>
+          FPGA 对照表中，该方案占用面积低于 Gross 的 AES-simple（351 slices）、De Cnudde 等的 d+1 分量掩码 AES（418 slices）和 Shahmirzadi–Moradi 的无新鲜随机数 AES（631 slices）。
+        </p>
+        <button class="button soft" data-eng-action="open-ise-review">打开工程复核 ${icon('arrow')}</button>
+      </div>
+      ${motionButton('case','finals-motion-toggle')}
+    </section>`;
+  }
   function workspace(){
     const v=current();
-    return header(systemTitle,'在同一案例中，理解泄漏检测、实现成本与随机性需求。',button(icon('upload')+'导入配置','open-import')+button(icon('play')+'运行完整案例','run-all','primary',!!ui.busy))+
-    '<div class="case-strip"><div class="case-strip-main">'+icon('folder')+'<strong>'+e(state.config.project_name)+'</strong>'+chip('案例已载入','purple')+'</div><div class="case-strip-meta"><span>AES-128</span><span>已有结果案例</span><button class="help-button" data-action="navigate" data-route="config">配置详情 '+icon('chevron')+'</button></div></div>'+
+    return header(systemTitle,'比较两套 AES-128 门限防护的一阶检测结果、实现面积和随机量需求。',button(icon('upload')+'导入配置','open-import')+button(icon('play')+'加载案例并对比','run-all','primary',!!ui.busy))+
+    finalsCase()+
+    '<div class="case-strip"><div class="case-strip-main">'+icon('folder')+'<strong>'+e(state.config.project_name)+'</strong>'+chip('配置已载入','purple')+'</div><div class="case-strip-meta"><span>AES-128</span><span>已有结果案例</span><button class="help-button" data-action="navigate" data-route="config">配置详情 '+icon('chevron')+'</button></div></div>'+
     '<div class="stats-grid">'+[
       ['target','TVLA 参考阈值','±4.5','|t|','一阶检测 · 固定组 / 随机组'],
       ['activity','未防护基线样本','100,000','条','案例记录 · 曲线数量'],
       ['shield','防护案例样本','10,000,000','条','案例记录 · 曲线数量'],
       ['layers','当前方案资源',String(v.slices),'slices','Spartan-6 · FPGA 资源记录']
     ].map(([i,title,value,unit,foot])=>'<div class="stat-card"><div class="stat-top"><span>'+title+'</span><span class="stat-icon">'+icon(i)+'</span></div><div class="stat-value">'+value+'<span>'+unit+'</span></div><div class="stat-foot">'+foot+'</div></div>').join('')+'</div>'+workflow()+
-    '<div class="workspace-grid"><div><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:15px">选择防护方案</h2><span class="muted" style="font-size:10px">02 个既有案例</span></div>'+variantCards()+
-    '<div class="conditions-note">'+icon('info')+'<span>* 每周期额外新鲜随机量，低随机数方案仍需随机初始化与警卫更新。</span></div>'+section('泄漏检测结果','保留原始坐标、样本量与结论范围。','<span class="right-note">'+icon('expand')+'点击图像查看原图</span>')+'<div class="results-grid">'+resultCard('baseline')+resultCard('protected')+'</div>'+activity()+'</div><aside class="workspace-aside"><div class="panel summary-card"><div class="summary-heading">CURRENT EVALUATION</div><h2>'+v.name+'</h2><p class="description">'+v.description+'</p><div class="summary-swatch"></div><dl class="resource-compact"><div><dt>逻辑资源</dt><dd>'+v.lut+' <span>LUT</span></dd></div><div><dt>寄存器</dt><dd>'+v.ff+' <span>FF</span></dd></div><div><dt>加密周期</dt><dd>236 <span>cycles</span></dd></div><div><dt>最高综合频率</dt><dd>'+v.max_clock_mhz+' <span>MHz</span></dd></div></dl><p class="footnote">名义吞吐率约 '+C.throughput(v)+' Mbit/s<br>由文献参数估算，不计通信与随机源开销。</p>'+button('查看完整对比 '+icon('arrow'),'compare','soft wide',!!ui.busy)+'</div>'+compactConditions()+'<div class="panel mini-section evidence-note"><strong>每项结论，都保留依据</strong><p>当前展示关联检测结果图、资源表与采集材料，图表来源和文件校验信息统一保存在素材记录中。</p>'+button('浏览案例与来源 '+icon('arrow'),'navigate','quiet small',false,'data-route="sources"')+'</div></aside></div>';
+    '<div class="workspace-grid"><div><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:15px">选择防护方案</h2><span class="muted" style="font-size:10px">两套防护</span></div>'+variantCards()+
+    '<div class="conditions-note">'+icon('info')+'<span>* 每周期额外新鲜随机量，低随机数方案仍需随机初始化与警卫更新。</span></div>'+section('泄漏检测结果','保留原始坐标、样本量与结论范围。','<span class="right-note">'+icon('expand')+'点击图像查看原图</span>')+'<div class="results-grid">'+resultCard('baseline')+resultCard('protected')+'</div>'+activity()+'</div><aside class="workspace-aside"><div class="panel summary-card"><div class="summary-heading">CURRENT EVALUATION</div><h2>'+v.name+'</h2><p class="description">'+v.description+'</p><div class="summary-swatch"></div><dl class="resource-compact"><div><dt>逻辑资源</dt><dd>'+v.lut+' <span>LUT</span></dd></div><div><dt>寄存器</dt><dd>'+v.ff+' <span>FF</span></dd></div><div><dt>加密周期</dt><dd>236 <span>cycles</span></dd></div><div><dt>最高综合频率</dt><dd>'+v.max_clock_mhz+' <span>MHz</span></dd></div></dl><p class="footnote">名义吞吐率约 '+C.throughput(v)+' Mbit/s<br>由综合参数估算，不计通信与随机源开销。</p>'+button('查看完整对比 '+icon('arrow'),'compare','soft wide',!!ui.busy)+'</div>'+compactConditions()+'<div class="panel mini-section evidence-note"><strong>每项结论，都保留依据</strong><p>当前展示关联检测结果图、资源表与采集材料，检测图与设备记录可在项目材料中查看。</p>'+button('浏览项目材料 '+icon('arrow'),'navigate','quiet small',false,'data-route="sources"')+'</div></aside></div>';
   }
   function tableResources(){return '<div class="table-wrap"><table><thead><tr><th>防护方案</th><th>Slices</th><th>LUT</th><th>FF</th><th>BRAM</th><th>周期</th><th>最高综合频率</th><th>名义吞吐率*</th></tr></thead><tbody>'+Object.values(D.variants).map(v=>'<tr class="'+(v.id===current().id?'active-row':'')+'"><td>'+v.name+(v.id===current().id?' '+chip('当前','purple'):'')+'</td><td>'+v.slices+'</td><td>'+v.lut+'</td><td>'+v.ff+'</td><td>'+v.bram+'</td><td>'+v.cycles+'</td><td>'+v.max_clock_mhz+' MHz</td><td>'+C.throughput(v)+' Mbit/s</td></tr>').join('')+'</tbody></table></div>';}
   function gate(title,description,action,label){return '<div class="panel empty-state"><div class="empty-symbol">'+icon('compare')+'</div><h2>'+e(title)+'</h2><p>'+e(description)+'</p>'+button(icon('play')+label,action,'primary',!!ui.busy)+'</div>';}
   function comparePage(){
     let html=header('结果对比','将检测现象与实现成本放在各自的条件下比较。',button(icon('report')+'前往报告中心','go-reports','primary',!state.compared));
-    if(!state.compared)return html+workflow()+gate('当前案例尚未完成对比','先校验并加载当前方案的基线与防护结果，再汇总资源指标和条件差异。','run-all','运行当前完整案例');
+    if(!state.compared)return html+workflow()+gate('加载检测结果并生成对比','先校验并加载当前方案的基线与防护结果，再汇总资源指标和条件差异。','run-all','加载案例并对比');
     html+='<div class="results-grid">'+resultCard('baseline')+resultCard('protected')+'</div>'+banner('基线记录 100000 条、防护记录 10000000 条曲线；按一阶 Welch t 检验与 ±4.5 参考阈值展示检测现象，保留各图原始坐标和样本规模。');
-    html+=section('FPGA 资源与性能','资源记录表 5.4 · Spartan-6 XC6SLX75 · ISE Design Suite 14.7')+'<div class="panel">'+tableResources()+'<div class="comparison-conclusion">'+icon('info')+'<div><h3>相同周期数下，资源与随机性呈现不同取舍</h3><p>* 名义吞吐率 = 128 × 最高综合频率 ÷ 236。低资源约 78.6 Mbit/s，低随机数约 67.8 Mbit/s，属于参数估算。资源综合平台与 TVLA 采集平台分别记录。</p></div></div></div>';
-    html+=section('两种防护方案的成本差异','以低随机数方案为分母，比较两种防护方案的资源配置。')+'<div class="three-columns"><div class="panel panel-body"><h3>FPGA 逻辑资源</h3><div class="metric-pair"><div><strong>195</strong><span>低资源 / slices</span></div><div><strong>212</strong><span>低随机数 / slices</span></div></div><div class="progress-track"><div style="width:92%"></div></div><div class="progress-track mint"><div style="width:100%"></div></div><p class="delta-note">低资源方案少用 <b>17 slices · 约 8.0%</b></p></div><div class="panel panel-body"><h3>ASIC 等效面积</h3><div class="metric-pair"><div><strong>6,806</strong><span>低资源 / GE</span></div><div><strong>7,671</strong><span>低随机数 / GE</span></div></div><div class="progress-track"><div style="width:88.7%"></div></div><div class="progress-track mint"><div style="width:100%"></div></div><p class="delta-note">低资源方案少用 <b>865 GE · 约 11.3%</b></p></div><div class="panel panel-body"><h3>额外新鲜随机量</h3><div class="metric-pair"><div><strong>22</strong><span>低资源 / bit 每周期</span></div><div><strong>0*</strong><span>低随机数 / 原表列值</span></div></div><p class="text-content" style="font-size:10px">* 低随机数方案仍需 23 比特可复用随机量及 8 比特 guard 初始化，并按既定机制更新。</p></div></div>';
-    html+=section('文献方案性能对照','以最新作品介绍图表为基准，保留作者、文献、单位与脚注。')+'<details class="panel panel-body" data-cited-comparisons open><summary>查看带文献标注的性能对照表</summary><div style="margin-top:16px"><section aria-label="FPGA文献对照表"><h3>FPGA 文献对照表</h3>'+C.performanceTablesHTML({tableId:'fpga',interactive:true})+'</section><section aria-label="ASIC文献对照表" style="margin-top:24px"><h3>ASIC 文献对照表</h3>'+C.performanceTablesHTML({tableId:'asic',interactive:true})+'</section></div></details><div class="two-columns" style="margin-top:20px">'+mediaCard(current().growthAsset,'基线统计量随样本量变化','检测图 '+current().growthFigure+' · 10000 至 90000 条曲线的趋势图。')+'<div class="panel panel-body text-content"><h3>项目文档与比较口径</h3><p style="margin-top:14px">性能对照采用最新作品介绍中的图表基准，其中一组文献方案为 203 slices、476 LUT、529 FF、108 kbit BRAM、216 周期、138 MHz 和 8 比特额外随机量。</p><p>各方案按对应文献的工艺、PRNG、密钥掩码及随机量统计条件列示，结合逻辑资源、存储和时序指标比较实现取舍。</p><p>ASIC 数据：NanGate 45nm / Design Compiler v2016.03。参考文献与项目文档一致，可在“案例与来源”查看。</p><a href="#sources">查看参考文献 '+icon('book')+'</a></div></div>';
+    html+=section('FPGA 资源与性能','Spartan-6 XC6SLX75 · ISE Design Suite 14.7')+'<div class="panel">'+tableResources()+'<div class="comparison-conclusion">'+icon('info')+'<div><h3>相同周期数下，资源与随机性呈现不同取舍</h3><p>* 名义吞吐率 = 128 × 最高综合频率 ÷ 236。低资源约 78.6 Mbit/s，低随机数约 67.8 Mbit/s，属于参数估算。资源综合平台与 TVLA 采集平台分别记录。</p></div></div></div>';
+    html+=section('两种防护方案的成本差异','以低随机数方案为分母，比较两种防护方案的资源配置。')+'<div class="three-columns"><div class="panel panel-body"><h3>FPGA 逻辑资源</h3><div class="metric-pair"><div><strong>195</strong><span>低资源 / slices</span></div><div><strong>212</strong><span>低随机数 / slices</span></div></div><div class="progress-track"><div style="width:92%"></div></div><div class="progress-track mint"><div style="width:100%"></div></div><p class="delta-note">低资源方案少用 <b>17 slices · 约 8.0%</b></p></div><div class="panel panel-body"><h3>ASIC 等效面积</h3><div class="metric-pair"><div><strong>6,806</strong><span>低资源 / GE</span></div><div><strong>7,671</strong><span>低随机数 / GE</span></div></div><div class="progress-track"><div style="width:88.7%"></div></div><div class="progress-track mint"><div style="width:100%"></div></div><p class="delta-note">低资源方案少用 <b>865 GE · 约 11.3%</b></p></div><div class="panel panel-body"><h3>额外新鲜随机量</h3><div class="metric-pair"><div><strong>22</strong><span>低资源 / bit 每周期</span></div><div><strong>0*</strong><span>低随机数 / 持续新鲜随机量</span></div></div><p class="text-content" style="font-size:10px">* 低随机数方案仍需 23 比特可复用随机量及 8 比特 guard 初始化，并按既定机制更新。</p></div></div>';
+    html+=section('防护方案性能对照','FPGA 与 ASIC 分开比较。工艺和随机量统计条件随表列出。')+
+      '<div class="panel panel-body" data-performance-comparisons>'+C.performanceTablesHTML({tableId:'fpga'})+C.performanceTablesHTML({tableId:'asic'})+'</div>';
     return html;
   }
   function mediaCard(file,title,description='',photo=false){return '<article class="panel media-card '+(photo?'photo':'')+'"><h3>'+e(title)+'</h3>'+image(file,title)+'<p>'+e(description||assetCaption(file))+'</p></article>';}
@@ -118,9 +167,9 @@
     '<div class="tab-bar" role="group" aria-label="硬件资料分类">'+['现场与采集','SASEBO-GIII','SASEBO-GII'].map(t=>'<button class="tab-button '+(ui.hardwareTab===t?'active':'')+'" data-action="hardware-tab" data-tab="'+t+'" aria-pressed="'+(ui.hardwareTab===t)+'">'+t+'</button>').join('')+'</div>';
     if(ui.hardwareTab==='现场与采集'){
       html+='<div class="two-columns">'+mediaCard('hardware-photo.jpg','实验设备与连接','SAKURA-X、Xilinx 下载线与 PicoScope 5000 Series 设备连接画面。',true)+mediaCard('acquisition.png','采集界面与完成计数','显示 250M、20000 点、10000000 条完成计数、100% 进度，耗时 19h29m58s。')+'</div>';
-      html+=section('采集参数','采集界面中的采样设置与完成记录。')+'<div class="stats-grid">'+[['采样率','250','MS/s'],['单条采样点','20,000','点'],['完成计数','10,000,000','条'],['估算采集窗口','80','μs']].map(([title,value,unit])=>'<div class="stat-card"><div class="stat-top">'+title+'</div><div class="stat-value">'+value+'<span>'+unit+'</span></div><div class="stat-foot">'+(unit==='μs'?'20000 ÷ 250 MS/s':'采集界面参数记录')+'</div></div>').join('')+'</div>';
-      html+=section('现场波形画面','展示本组实验现场的波形记录。')+'<div class="panel panel-body"><div class="photo-grid">'+[1,2,3,4].map(n=>'<div>'+image('wave-photo-'+n+'.png','现场波形画面 '+n)+'<p>本组实验输出后现场波形 '+n+'</p></div>').join('')+'</div></div>'+banner('实验材料按设备连接、采集界面和现场波形组织，采样参数与完成计数随画面列示。');
-      html+='<div class="two-columns">'+compactConditions()+'<div class="panel panel-body text-content"><h3>资源与时序的统计环境</h3><p style="margin-top:13px">FPGA：Spartan-6 XC6SLX75，ISE Design Suite 14.7，资源记录表 5.4。</p><p>ASIC：NanGate 45nm，Design Compiler v2016.03，资源记录表 5.3。</p><p>资源表采用综合频率口径，采集流程采用 3 MHz 工作频率，两类参数按用途列示。</p></div></div>';
+      html+=section('采集参数','采集界面中的采样设置与完成记录。')+'<div class="stats-grid">'+[['采样率','250','MS/s'],['单条轨迹采样点','20,000','点'],['完成计数','10,000,000','条'],['估算采集窗口','80','μs']].map(([title,value,unit])=>'<div class="stat-card"><div class="stat-top">'+title+'</div><div class="stat-value">'+value+'<span>'+unit+'</span></div><div class="stat-foot">'+(unit==='μs'?'20000 ÷ 250 MS/s':'采集界面参数记录')+'</div></div>').join('')+'</div>';
+      html+=section('现场波形画面','展示本组实验现场的波形记录。')+'<div class="panel panel-body"><div class="photo-grid">'+[1,2,3,4].map(n=>'<div>'+image('wave-photo-'+n+'.png','现场波形画面 '+n)+'<p>采集现场波形 '+n+'</p></div>').join('')+'</div></div>'+banner('实验材料按设备连接、采集界面和现场波形组织，采样参数与完成计数随画面列示。');
+      html+='<div class="two-columns">'+compactConditions()+'<div class="panel panel-body text-content"><h3>资源与时序的统计环境</h3><p style="margin-top:13px">FPGA：Spartan-6 XC6SLX75，ISE Design Suite 14.7。</p><p>ASIC：NanGate 45nm，Design Compiler v2016.03。</p><p>资源表采用综合频率口径，采集流程采用 3 MHz 工作频率，两类参数按用途列示。</p></div></div>';
     }else if(ui.hardwareTab==='SASEBO-GIII'){
       html+=banner('以下为 SASEBO-GIII 手册示例。其接口编号、拨码与触发设置对应该板卡版本；现场照片中的 SAKURA-X 另行识别。');
       html+='<div class="two-columns">'+mediaCard('giii-functions-original.png','板卡功能与接口分区','SASEBO-GIII Specification v1.1 · PDF 第 6 页。')+mediaCard('giii-setup-original.png','拨码与上电配置位置','Quick Start Guide · PDF 第 4 页。示例 SW3 第 2 位 ON；CN10 / CN5 对应两路配置通道。')+'</div><div class="two-columns" style="margin-top:20px">'+mediaCard('giii-measurement-original.png','功耗与触发测量示例','Quick Start Guide · PDF 第 6 页。')+'<div class="panel panel-body text-content"><h3>GIII 连接示例</h3><p style="margin-top:14px">通道 1：50Ω SMA-BNC 连接 J19，获取功耗信号。</p><p>通道 2：CN8 第 1 引脚作为触发，探头地线接 TP30，负边沿触发。</p><p>接口编号、拨码和触发设置按 SASEBO-GIII 手册组织，连接示例与对应板卡版本配套展示。</p></div></div>';
@@ -130,34 +179,79 @@
     }
     return html;
   }
+  function materialEntries(){return Object.entries(M).filter(([file])=>!legacyPerformanceImages.has(file));}
   function assetGrid(){
     const query=ui.search.trim().toLowerCase();
-    const entries=Object.entries(M).filter(([file,m])=>(ui.filter==='all'||m.category===ui.filter)&&(!query||(file+' '+assetTitle(file)+' '+assetSource(file)+' '+(m.original_item||'')).toLowerCase().includes(query)));
-    return entries.length?entries.map(([file,m])=>'<article class="panel asset-card">'+image(file)+'<h3>'+e(assetTitle(file))+'</h3><p>'+e(assetCaption(file))+'</p><details class="asset-provenance"><summary>查看素材记录</summary><p>'+e(assetSource(file))+'</p></details><p class="hash" title="完整 SHA-256">SHA-256 '+e(m.sha256)+'</p></article>').join(''):'<p class="muted" style="padding:20px">没有匹配的素材，尝试其他关键词或分类。</p>';
+    const entries=materialEntries().filter(([file,m])=>
+      (ui.filter==='all'||m.category===ui.filter)&&(!query||(file+' '+assetTitle(file)).toLowerCase().includes(query)));
+    return entries.length?entries.map(([file,m])=>'<article class="panel asset-card">'+image(file)+'<h3>'+e(assetTitle(file))+'</h3><p>'+e(assetCaption(file))+'</p><details class="asset-provenance"><summary>文件校验值</summary><p class="hash">SHA-256 '+e(m.sha256)+'</p></details></article>').join(''):'<p class="muted" style="padding:20px">没有匹配的项目材料。</p>';
   }
-  function sourcesPage(){return header('案例与来源','从原图、图表编号和文件校验值，追溯每项材料。',button(icon('download')+'导出来源清单','download-manifest'))+
-    '<section class="panel bibliography-panel"><h2>参考文献</h2><p class="reference-intro">沿用项目文档的 16 条参考文献编号与顺序；性能对比文献以 C 编号单独列示，支持从对照表直接查阅。</p>'+C.referencesHTML()+'</section><div class="source-list"><article class="panel source-card">'+chip('本作品实现','purple')+'<h3>AES侧信道防护对比与报告系统</h3><p>配置导入 · 结果对比 · 报告导出</p><p>统一关联项目配置、防护方案、检测图像与资源指标，支持图片完整性校验、方案切换和离线图文报告。</p></article>'+D.sources.map(s=>'<article class="panel source-card">'+chip(s.type,'gray')+'<h3>'+e(s.title)+'</h3><p>'+e(s.author)+(s.year?' · '+s.year:'')+'</p><p>'+e(s.note)+'</p>'+(s.url?'<a href="'+e(s.url)+'" target="_blank" rel="noopener noreferrer">查看公开来源 '+icon('link')+'</a>':'')+'</article>').join('')+'</div>'+banner(projectDocumentTitle)+
-    '<div class="source-toolbar"><div class="search-box">'+icon('search')+'<input id="asset-search" type="search" placeholder="搜索图片名称、图号或来源…" value="'+e(ui.search)+'" aria-label="搜索素材"></div><span class="muted" style="font-size:10px">'+Object.keys(M).length+' 项素材 · 原图已随系统内嵌</span></div><div class="tab-bar" role="group" aria-label="素材分类">'+[['all','全部'],['tvla','TVLA'],['structure','结构'],['hardware','硬件'],['formula','公式'],['table','原表']].map(([id,label])=>'<button class="tab-button '+(ui.filter===id?'active':'')+'" data-action="asset-filter" data-filter="'+id+'" aria-pressed="'+(ui.filter===id)+'">'+label+'</button>').join('')+'</div><div class="asset-grid" id="asset-grid">'+assetGrid()+'</div>';}
+  function sourcesPage(){return header('项目材料','按类别查看两套防护的结构、检测图及设备记录。',button(icon('download')+'导出材料清单','download-manifest'))+
+    '<div class="source-toolbar"><div class="search-box">'+icon('search')+'<input id="asset-search" type="search" placeholder="搜索材料名称…" value="'+e(ui.search)+'" aria-label="搜索素材"></div><span class="muted" style="font-size:10px">'+materialEntries().length+' 项材料</span></div><div class="tab-bar" role="group" aria-label="素材分类">'+[['all','全部'],['tvla','TVLA'],['structure','结构'],['hardware','硬件'],['formula','逻辑表达式'],['table','逻辑门资源']].map(([id,label])=>'<button class="tab-button '+(ui.filter===id?'active':'')+'" data-action="asset-filter" data-filter="'+id+'" aria-pressed="'+(ui.filter===id)+'">'+label+'</button>').join('')+'</div><div class="asset-grid" id="asset-grid">'+assetGrid()+'</div>';}
   function configPage(){return header('项目配置','用一份配置关联项目、方案、测试条件与对应结果图。',button(icon('download')+'下载当前配置','download-config'))+
-    '<div class="two-columns"><div class="stack"><section class="panel"><div class="panel-head"><h2>当前案例设置</h2>'+chip('配置 v'+state.config.schema_version,'purple')+'</div><form id="case-form" class="panel-body config-form"><label for="project-name">项目名称</label><input id="project-name" name="name" value="'+e(state.config.project_name)+'" maxlength="100" required><label for="project-id">项目标识</label><input id="project-id" name="id" value="'+e(state.config.project_id)+'" maxlength="80" required><label for="protection-select">防护方案</label><select id="protection-select" name="protection">'+Object.values(D.variants).map(v=>'<option value="'+v.id+'" '+(v.id===current().id?'selected':'')+'>'+v.name+'</option>').join('')+'</select><p class="hint">变更项目或方案后，重新加载结果并生成对比，确保图片和报告对应当前配置。</p><button type="submit" class="button primary" '+(ui.busy?'disabled':'')+'>'+icon('check')+'应用设置</button></form></section><section class="panel panel-body text-content"><h3>可导入的配置</h3><p style="margin-top:12px">支持版本 1.0 与 1.1 的 existing_results 案例。兼容已有低资源配置，自动关联结构、图片及资源字段。</p><p>当前提供两种已核对的文献案例，检测阈值、图号、样本量和资源指标需与原始来源匹配。</p>'+button('下载低资源示例','download-example','small',false,'data-id="low-resource-ti"')+' '+button('下载低随机数示例','download-example','small',false,'data-id="low-randomness-ti"')+'</section></div><section class="panel"><div class="panel-head"><h2>导入项目配置</h2><span class="muted" style="font-size:10px">JSON · 最大 2 MB</span></div><div class="panel-body"><div class="dropzone" data-action="open-import" id="config-dropzone" role="button" tabindex="0" aria-label="选择或拖入 JSON 配置文件">'+icon('upload')+'<strong>点击选择，或将配置文件拖到这里</strong><p>文件仅在当前浏览器中读取</p></div>'+(ui.errors.length?'<div class="errors" role="alert"><h3>配置未能导入</h3><ul>'+ui.errors.map(err=>'<li>'+e(err)+'</li>').join('')+'</ul></div>':'')+'<label for="config-editor" style="display:block;font-size:11px;color:#a18ab1;margin-top:20px">也可以粘贴完整配置</label><textarea class="config-editor" id="config-editor" spellcheck="false" aria-label="JSON 配置内容">'+e(JSON.stringify(state.config,null,2))+'</textarea>'+button(icon('check')+'校验并导入文本','import-text','soft',!!ui.busy)+' '+button('恢复内置案例','reset-example','small',!!ui.busy)+'</div></section></div>'+banner('配置校验在导入时一次完成。缺字段、图号与方案不匹配、修改文献指标、未知版本或无效 JSON 会给出具体提示，当前有效项目保留。');}
+    '<div class="two-columns"><div class="stack"><section class="panel"><div class="panel-head"><h2>当前案例设置</h2>'+chip('配置 v'+state.config.schema_version,'purple')+'</div><form id="case-form" class="panel-body config-form"><label for="project-name">项目名称</label><input id="project-name" name="name" value="'+e(state.config.project_name)+'" maxlength="100" required><label for="project-id">项目标识</label><input id="project-id" name="id" value="'+e(state.config.project_id)+'" maxlength="80" required><label for="protection-select">防护方案</label><select id="protection-select" name="protection">'+Object.values(D.variants).map(v=>'<option value="'+v.id+'" '+(v.id===current().id?'selected':'')+'>'+v.name+'</option>').join('')+'</select><p class="hint">变更项目或方案后，重新加载结果并生成对比，确保图片和报告对应当前配置。</p><button type="submit" class="button primary" '+(ui.busy?'disabled':'')+'>'+icon('check')+'应用设置</button></form></section><section class="panel panel-body text-content"><h3>可导入的配置</h3><p style="margin-top:12px">支持版本 1.0 与 1.1 的 existing_results 案例。兼容已有低资源配置，自动关联结构、图片及资源字段。</p><p>检测阈值、样本量及工程指标须与所选防护方案匹配。</p>'+button('下载低资源示例','download-example','small',false,'data-id="low-resource-ti"')+' '+button('下载低随机数示例','download-example','small',false,'data-id="low-randomness-ti"')+'</section></div><section class="panel"><div class="panel-head"><h2>导入项目配置</h2><span class="muted" style="font-size:10px">JSON · 最大 2 MB</span></div><div class="panel-body"><div class="dropzone" data-action="open-import" id="config-dropzone" role="button" tabindex="0" aria-label="选择或拖入 JSON 配置文件">'+icon('upload')+'<strong>点击选择，或将配置文件拖到这里</strong><p>文件仅在当前浏览器中读取</p></div>'+(ui.errors.length?'<div class="errors" role="alert"><h3>配置未能导入</h3><ul>'+ui.errors.map(err=>'<li>'+e(err)+'</li>').join('')+'</ul></div>':'')+'<label for="config-editor" style="display:block;font-size:11px;color:#a18ab1;margin-top:20px">也可以粘贴完整配置</label><textarea class="config-editor" id="config-editor" spellcheck="false" aria-label="JSON 配置内容">'+e(JSON.stringify(C.presentationConfig(state.config),null,2))+'</textarea>'+button(icon('check')+'校验并导入文本','import-text','soft',!!ui.busy)+' '+button('恢复内置案例','reset-example','small',!!ui.busy)+'</div></section></div>'+banner('配置校验在导入时一次完成。缺字段、数据不匹配、未知版本或无效 JSON 会给出具体提示，当前有效项目保留。');}
   function reportsPage(){
     let html=header('报告中心','从当前案例直接生成可独立打开的图文报告。',chip(current().shortName,'purple'));
-    if(!state.compared)return html+gate('完成结果对比后，即可导出报告','报告需要当前方案的基线、防护图像、测试条件和资源参数。先完成案例加载与对比。','run-all','运行案例并生成对比');
+    if(!state.compared)return html+gate('生成当前案例报告','报告需要当前方案的基线、防护图像、测试条件和资源参数。先完成案例加载与对比。','run-all','加载案例并对比');
     const v=current();
-    return html+'<div class="panel"><div class="report-actions">'+button(icon('download')+'导出完整 HTML 报告','export-html','primary')+button(icon('report')+'打印 / 另存为 PDF','print-report')+button(icon('code')+'导出记录 JSON','export-json')+'<span class="muted">图像已内嵌 · 无需联网 · 可独立阅读</span></div><div class="report-preview"><article class="report-sheet"><div class="eyebrow">CASE EVALUATION REPORT</div><h2>'+projectDocumentTitle+'</h2><p>'+e(state.config.project_name)+' · '+v.name+'</p><p>基于已有文献结果的案例整理 · 当前对比完成于 '+e(C.formatDate(state.comparedAt))+'</p><div class="report-rule"></div><h3>01 案例与检测条件</h3><p>SAKURA-X / Kintex-7，PicoScope 5244B，250 MS/s，3 MHz，一阶 Welch t 检验，参考阈值 ±4.5，采用固定明文与随机明文分组。</p><h3>02 未防护基线与防护结果</h3><p>未防护：100000 条曲线，检测图显示明显越阈。'+v.name+'：10000000 条曲线，所记录条件下未观察到显著的一阶越阈。</p><img src="'+A[v.baselineAsset]+'" alt="报告预览：未防护 TVLA 原图"><p>未防护 · '+e(assetSource(v.baselineAsset))+'</p><img src="'+A[v.protectedAsset]+'" alt="报告预览：防护 TVLA 原图"><p>'+v.name+' · '+e(assetSource(v.protectedAsset))+'</p><h3>03 资源与性能取舍</h3>'+tableResources()+'<p style="margin-top:11px">名义吞吐率按频率与周期计算。以下性能对照表以最新作品介绍图表为基准，指标、单位与脚注同步列示；完整项目文档同时保留结构图、随机量条件和软件执行记录。</p>'+C.performanceTablesHTML({interactive:true})+'<h3>04 方案实现与分析方法</h3><p>系统以配置、图像和来源关联组织检测结果，并从资源、周期与随机量需求比较方案取舍。图表保留对应平台、样本量与一阶检测条件，软件执行记录随项目文档输出。</p><h3>05 参考文献</h3><p>保留项目文档的 16 条参考文献，性能对比文献采用独立 C 编号。</p>'+C.referencesHTML()+'</article></div></div>'+banner('HTML 报告包含全部必要图片，不依赖本系统目录。记录 JSON 保存当前配置、加载记录、比较条件与素材校验信息，可用于后续交接。');
+    return html+'<div class="panel"><div class="report-actions">'+button(icon('download')+'导出完整 HTML 报告','export-html','primary')+button(icon('report')+'打印 / 另存为 PDF','print-report')+button(icon('code')+'导出记录 JSON','export-json')+'<span class="muted">图像已内嵌 · 无需联网 · 可独立阅读</span></div><div class="report-preview"><article class="report-sheet"><div class="eyebrow">CASE EVALUATION REPORT</div><h2>'+projectDocumentTitle+'</h2><p>'+e(state.config.project_name)+' · '+v.name+'</p><p>当前对比完成于 '+e(C.formatDate(state.comparedAt))+'</p><div class="report-rule"></div><h3>01 案例与检测条件</h3><p>SAKURA-X / Kintex-7，PicoScope 5244B，250 MS/s，3 MHz，一阶 Welch t 检验，参考阈值 ±4.5，采用固定明文与随机明文分组。</p><h3>02 未防护基线与防护结果</h3><p>未防护：100000 条曲线，检测图显示明显越阈。'+v.name+'：10000000 条曲线，所记录条件下未观察到显著的一阶越阈。</p><img src="'+A[v.baselineAsset]+'" alt="报告预览：未防护 TVLA 原图"><p>未防护 · '+e(assetCaption(v.baselineAsset))+'</p><img src="'+A[v.protectedAsset]+'" alt="报告预览：防护 TVLA 原图"><p>'+v.name+' · '+e(assetCaption(v.protectedAsset))+'</p><h3>03 资源与性能取舍</h3>'+tableResources()+'<p style="margin-top:11px">名义吞吐率按频率与周期计算。性能对照按 FPGA 和 ASIC 分开列示，包含工艺与随机量条件。</p>'+C.performanceTablesHTML()+'<h3>04 实现取舍与结论范围</h3><p>两套方案均为 236 个加密周期。低资源方案占 195 slices，持续刷新 22 bit/周期。低随机数方案占 212 slices，计算阶段持续额外新鲜随机量为 0 bit/周期，初始化输入为 23 bit 复用随机量与 8 bit 警卫初值，并按设计更新。两套防护仅在所列样本规模和测试条件下记录为一阶 TVLA 未越阈。</p></article></div></div>'+banner('HTML 报告包含全部必要图片，不依赖本系统目录。记录 JSON 保存当前配置、加载记录、比较条件与工程指标。');
+  }
+  function syncMotionLayer(name){
+    const layer = motionLayers[name];
+    const video = $(layer.selector);
+    if (!video) return;
+
+    function updateToggle(unavailable = false){
+      const toggle = $(`[data-action="toggle-motion"][data-motion="${name}"]`);
+      if (!toggle) return;
+      const label = (layer.paused ? '播放' : '暂停') + layer.label;
+      toggle.hidden = !motionPreference.matches || unavailable || !!video.error;
+      toggle.setAttribute('aria-label', label);
+      toggle.title = label;
+      toggle.innerHTML = icon(layer.paused ? 'play' : 'pause');
+    }
+
+    updateToggle();
+    if (!motionPreference.matches || document.hidden || layer.paused){
+      video.pause();
+      if (!motionPreference.matches) video.classList.remove('is-ready');
+      return;
+    }
+    if (video.error || !video.paused) return;
+    if (!video.hasAttribute('src')) video.src = layer.source;
+    video.play().then(() => {
+      if (video.isConnected && motionPreference.matches && !layer.paused && !video.paused){
+        video.classList.add('is-ready');
+      }
+    }).catch(error => {
+      if (!video.isConnected || !motionPreference.matches || error.name === 'AbortError') return;
+      if (error.name === 'NotAllowedError'){
+        layer.paused = true;
+        updateToggle();
+      } else {
+        video.classList.remove('is-ready');
+        updateToggle(true);
+      }
+    });
+  }
+  function syncBackgroundMotion(){
+    syncMotionLayer('system');
+    syncMotionLayer('case');
   }
   function render(){
     const renderers={workspace,config:configPage,compare:comparePage,theory:theoryPage,hardware:hardwarePage,sources:sourcesPage,reports:reportsPage};
     const engineering=window.AESEngineeringUI;
     const content=engineering?.active(ui.route)?engineering.render(ui.route):renderers[ui.route]();
+    $('.finals-case-video')?.pause();
     $('#app').innerHTML=shell((engineering?.modeBar(ui.route)||'')+content);
+    syncBackgroundMotion();
     document.title=routeNames[ui.route]+' · '+systemTitle;
   }
   function applyConfig(config,message){state={...C.newState(config),revision:state.revision+1,events:state.events};ui.errors=[];log(message,'config');persist();render();toast(message);}
   function importConfig(text){
     const result=C.validateConfig(text);
     if(!result.ok){ui.errors=result.errors;navigate('config');toast('配置校验未通过，已保留当前有效项目。',true);return false;}
-    applyConfig(result.config,result.migrated?'旧版配置已导入并补齐为 1.1，待重新加载结果。':'配置校验通过，当前案例已更新。');return true;
+    applyConfig(result.config,result.migrated?'已导入旧版配置并转换为 1.1。':'配置校验通过，当前案例已更新。');return true;
   }
   async function importFile(file){if(!file)return;if(file.size>2*1024*1024){ui.errors=['配置文件超过 2 MB，请使用仅包含元数据的 JSON。'];navigate('config');toast('文件过大，未导入。',true);return;}try{importConfig(await file.text());}catch{toast('无法读取该文件，请选择有效的 JSON 配置。',true);}}
   const assetLoads=new Map();
@@ -230,7 +324,7 @@
   function reportFilename(extension){return projectDocumentTitle+'_'+current().shortName+'_'+new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date())+'.'+extension;}
   function exportReport(kind){
     try{
-      if(kind==='json'){saveJSON(C.reportData(state,M),reportFilename('json'));log('已导出当前案例的结构化记录 JSON。','export');}
+      if(kind==='json'){saveJSON(C.presentationReportData(state,M),reportFilename('json'));log('已导出当前案例的结构化记录 JSON。','export');}
       else {
         const html=C.buildReport(state,A,M);
         if(kind==='print'){
@@ -248,8 +342,13 @@
   document.addEventListener('click',async event=>{
     const node=event.target.closest('[data-action]');if(!node||node.disabled)return;
     const action=node.dataset.action;
-    if(action==='view-reference'){event.preventDefault();navigate('sources');document.getElementById(node.dataset.referenceId)?.scrollIntoView({block:'center',behavior:'smooth'});}
-    else if(action==='navigate')navigate(node.dataset.route);
+    if(action==='navigate')navigate(node.dataset.route);
+    else if(action==='toggle-motion'){
+      const name = node.dataset.motion;
+      if (!Object.hasOwn(motionLayers, name)) return;
+      motionLayers[name].paused = !motionLayers[name].paused;
+      syncMotionLayer(name);
+    }
     else if(action==='open-import')$('#config-file').click();
     else if(action==='run-baseline')await run('baseline');
     else if(action==='run-protected')await run('protected');
@@ -258,11 +357,14 @@
     else if(action==='go-reports')navigate('reports');
     else if(action==='select-variant'){
       if(current().id===node.dataset.id||ui.busy)return;
-      state=C.selectVariant(state,node.dataset.id);log('已切换至'+current().name+'；旧结果和对比已清除。','config');persist();render();toast('方案已切换，图片与指标已同步，待重新加载结果。');
-    }else if(action==='download-config'){saveJSON(state.config,'AES项目配置_'+current().shortName+'.json');toast('已导出当前项目配置。');}
-    else if(action==='download-example'){saveJSON(C.createConfig(node.dataset.id),'示例配置_'+D.variants[node.dataset.id].shortName+'.json');toast('示例配置已导出。');}
-    else if(action==='download-manifest'){saveJSON({project_document:D.projectDocument,sources:D.sources,references:D.references,comparison_references:D.comparisonReferences,performance_tables:D.reportPerformanceTables,assets:M,source_documents:{latest_document:D.referenceDocument}},'AES案例素材来源清单.json');toast('来源清单已导出。');}
-    else if(action==='reset-example')applyConfig(C.createConfig(),'已恢复内置低资源案例，待重新加载结果。');
+      state=C.selectVariant(state,node.dataset.id);log('已切换至'+current().name+'；旧结果和对比已清除。','config');persist();render();toast('已切换方案，当前图片与指标已更新。');
+    }else if(action==='download-config'){saveJSON(C.presentationConfig(state.config),'AES项目配置_'+current().shortName+'.json');toast('已导出当前项目配置。');}
+    else if(action==='download-example'){saveJSON(C.presentationConfig(C.createConfig(node.dataset.id)),'示例配置_'+D.variants[node.dataset.id].shortName+'.json');toast('示例配置已导出。');}
+    else if(action==='download-manifest'){
+      const assets=materialEntries().map(([file,m])=>({file,name:assetTitle(file),category:m.category,sha256:m.sha256}));
+      saveJSON({assets},'AES项目材料清单.json');toast('材料清单已导出。');
+    }
+    else if(action==='reset-example')applyConfig(C.createConfig(),'已恢复内置低资源案例配置。');
     else if(action==='import-text'){const text=$('#config-editor').value;importConfig(text);if(ui.errors.length){const editor=$('#config-editor');if(editor)editor.value=text;}}
     else if(action==='hardware-tab'){ui.hardwareTab=node.dataset.tab;render();}
     else if(action==='asset-filter'){ui.filter=node.dataset.filter;render();}
@@ -294,6 +396,9 @@
   window.addEventListener('hashchange',()=>{const route=location.hash.slice(1);if(routeNames[route]&&ui.route!==route){ui.route=route;render();window.scrollTo(0,0);}});
   window.addEventListener('beforeunload',()=>objectURLs.forEach(url=>URL.revokeObjectURL(url)));
   $('#image-viewer').addEventListener('click',event=>{if(event.target===$('#image-viewer'))$('#image-viewer').close();});
+  motionPreference.addEventListener('change', syncBackgroundMotion);
+  document.addEventListener('visibilitychange', syncBackgroundMotion);
   window.AESEngineeringUI?.init({render,navigate,toast,saveBlob,core:C});
   render();
 })();
+
