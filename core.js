@@ -1,6 +1,7 @@
 (function (root) {
   'use strict';
   const D = root.AESData || (typeof require !== 'undefined' && require('./data.js'));
+  const reportLayout = root.AESReportLayout || (typeof require === 'function' && require('./report-layout.js'));
   const copy = value => JSON.parse(JSON.stringify(value));
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const formatDate = iso => new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(iso));
@@ -171,16 +172,13 @@
   }
   function buildReport(state,assets,manifest={}) {
     const report=reportData(state,manifest),c=report.config,v=D.variants[c.selected_protection],e=escapeHTML;
-    const documentTitle='AES侧信道防护对比与报告系统项目文档';
     const figure=(file,title)=>{
       if(!assets[file])throw new Error('报告缺少图片：'+file);
       return '<figure><img src="'+assets[file]+'" alt="'+e(title)+'"><figcaption>'+e(title)+'</figcaption></figure>';
     };
     const rows=Object.values(D.variants).map(x=>'<tr><td>'+e(x.name)+'</td><td>'+x.slices+'</td><td>'+x.lut+'</td><td>'+x.ff+'</td><td>'+x.bram+'</td><td>'+x.cycles+'</td><td>'+x.max_clock_mhz+'</td><td>'+throughput(x)+'</td><td>'+x.asic_ge+'</td></tr>').join('');
     const params=[['评估模式','加载既有检测结果并对比工程指标'],['当前防护',v.name],['TVLA 平台',D.conditions.board+' / '+D.conditions.device],['测量设备',D.conditions.scope+' / 30dB 前置放大器'],['采样与工作频率','250 MS/s / 3 MHz'],['工具与检测','Vivado 2021.2 / 一阶 TVLA / 参考阈值 ±4.5'],['输入分组','固定明文组与随机明文组'],['报告曲线条数','基线 100000 条 / 防护 10000000 条'],['FPGA 资源环境','Spartan-6 XC6SLX75 / ISE 14.7'],['ASIC 环境','NanGate 45nm / Design Compiler v2016.03']];
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(documentTitle)}</title><style>${REPORT_CSS+PERFORMANCE_TABLE_CSS}</style></head><body>
-<div class="printbar"><span>独立项目文档 · 图像已内嵌</span><button onclick="window.print()">打印 / 另存为 PDF</button></div><main>
-<header><small>SCA STUDIO / PROJECT DOCUMENT</small><h1>${e(documentTitle)}</h1><p>${e(c.project_name)} · ${e(v.name)}</p><p class="meta">项目 ${e(c.project_id)} · 生成于 ${e(formatDate(report.generated_at))}（北京时间）</p></header>
+    const content = `
 <section><h2>方案概述与检测结果</h2><p>本系统以配置导入、基线与防护结果加载、资源性能比较和报告输出组成完整评估流程。报告汇总本项目的检测结果、工程指标与设备记录。</p><p>未防护基线在记录的 100000 条曲线条件下明显超过 ±4.5 参考阈值；${e(v.name)}在记录的 10000000 条曲线与一阶检测条件下未观察到显著越阈。</p><p>${e(v.detail)}</p></section>
 <section><h2>本项目的系统实现与分析工作</h2><p>系统统一管理项目配置、方案标识、检测条件、原始图像和资源指标。结果加载包含配置与图像对应关系检查、图像解码和 SHA-256 校验；比较分析计算资源差值、相对比例及名义吞吐率；报告生成将当前选择、完整图像和软件操作记录汇总为可独立阅读的项目文档。</p></section>
 <section><h2>环境与检测条件</h2><table>${params.map(r=>'<tr><th>'+e(r[0])+'</th><td>'+e(r[1])+'</td></tr>').join('')}</table></section>
@@ -190,11 +188,42 @@
 <section><h2>当前方案结构</h2>${figure(v.sboxAsset,v.name+' S盒结构')}${figure(v.aesAsset,v.name+' AES 数据通路')}<p>两种方案以两分量门限实现为基础，通过寄存器分层、逻辑优化与随机量组织形成不同的资源配置。加密核心均采用 236 个周期的串行数据通路。</p></section>
 <section><h2>比较口径</h2><p>FPGA 与 ASIC 指标分别列示。比较时核对工艺、周期和持续随机量的统计条件。软件从已记录的实验结果生成对比。</p></section>
 <section><h2>本次软件执行记录</h2><table><tr><th>操作</th><th>完成时间（北京时间）</th><th>执行范围</th></tr>${['baseline','protected'].map(k=>'<tr><td>'+e(k==='baseline'?'加载未防护基线':'加载防护结果')+'</td><td>'+e(formatDate(report.runs[k].completed_at))+'</td><td>'+e(report.runs[k].verification)+'</td></tr>').join('')}<tr><td>生成对比</td><td>${e(formatDate(report.comparison.created_at))}</td><td>汇总当前案例与工程指标</td></tr></table><p>本节时间对应网页软件操作记录。</p></section>
-<section><h2>结论范围</h2><p>一阶检测结论对应所列采集条件和样本规模。工程复核的面积判定以指定器件及 PAR 阶段为口径。低随机数方案在计算前输入 23 bit 复用随机量和 8 bit 警卫初值，计算时按设计复用及更新。</p><p class="meta">系统版本 ${e(D.version)} · 配置版本 ${e(c.schema_version)}</p></section></main></body></html>`;
+<section><h2>结论范围</h2><p>一阶检测结论对应所列采集条件和样本规模。工程复核的面积判定以指定器件及 PAR 阶段为口径。低随机数方案在计算前输入 23 bit 复用随机量和 8 bit 警卫初值，计算时按设计复用及更新。</p><p class="meta">系统版本 ${e(D.version)} · 配置版本 ${e(c.schema_version)}</p></section>`;
+    return reportLayout.render({
+      kind: '项目文档',
+      caption: '独立项目文档 · 图像已内嵌',
+      subtitle: `${c.project_name} · ${v.name}`,
+      detail: `项目 ${c.project_id} · 生成于 ${formatDate(report.generated_at)}（北京时间）`,
+      content,
+      css: REPORT_CSS + PERFORMANCE_TABLE_CSS,
+    });
   }
   const REFERENCE_CSS='.reference-list{list-style:none;margin:16px 0;padding:0}.reference-list li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:6px;margin:12px 0;line-height:1.85;break-inside:avoid;page-break-inside:avoid}.reference-number{font-variant-numeric:tabular-nums}.reference-text{overflow-wrap:anywhere}.bibliography-panel{padding:24px;margin-bottom:24px}.bibliography-panel h2{font-size:18px;margin:0 0 8px}.bibliography-panel .reference-list{font-size:13px;color:#4c485c}.reference-intro{font-size:12px;color:#777085;line-height:1.8}.report-sheet .reference-list{font-size:11px;color:#5f586f}.report-sheet .reference-list li{grid-template-columns:28px minmax(0,1fr)}.supporting-materials{font-size:12px}@media print{.reference-list{font-size:9pt}.reference-list li{margin:9px 0;grid-template-columns:28px minmax(0,1fr)}}';
   const PERFORMANCE_TABLE_CSS='.performance-table-block{margin:26px 0;break-inside:avoid;page-break-inside:avoid}.performance-table-block .table-scroll{overflow-x:auto}table.performance-table{width:100%;min-width:700px;table-layout:fixed;border-collapse:collapse;font-size:12px;line-height:1.5}.performance-table caption{caption-side:top;padding:0 0 12px;text-align:center;color:#242631;font-size:16px;font-weight:500}.performance-table .scheme-column{width:22%}.performance-table th,.performance-table td{border:1px solid #535563;padding:7px 8px;vertical-align:middle;text-align:center;overflow-wrap:normal;word-break:normal;background:white}.performance-table thead th{font-weight:500}.performance-table th[scope=row]{text-align:left;font-weight:400}.performance-table-note{font-size:11px;color:#656878;line-height:1.8}@media print{table.performance-table{min-width:0;font-size:9pt}.performance-table caption{font-size:11pt}.performance-table td,.performance-table th{padding:5px 4px}.performance-table-block .table-scroll{overflow:visible}.performance-table-note{font-size:8pt}}';
-  const REPORT_CSS='*{box-sizing:border-box}body{margin:0;color:#242631;background:#f1f2f6;font:15px/1.8 "Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1000px;margin:36px auto;padding:56px 64px;background:white}header{padding-bottom:24px;border-bottom:2px solid #6755d5}small{color:#6755d5;letter-spacing:2px}h1{font-size:30px;line-height:1.4}h2{font-size:20px;margin:30px 0 12px}section{margin:24px 0}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #dedee8;padding:10px;text-align:left;overflow-wrap:anywhere}th{background:#f1effc}figure{margin:24px 0;break-inside:avoid}figure img{display:block;max-width:100%;height:auto;margin:auto}figcaption{font-size:11px;color:#656878;text-align:center;overflow-wrap:anywhere}.meta{font-size:12px;color:#656878}li{margin:8px 0}.printbar{display:flex;justify-content:space-between;gap:12px;max-width:1000px;margin:24px auto}button{border:0;border-radius:6px;padding:10px 18px;background:#6755d5;color:white;cursor:pointer}.table-scroll{overflow:auto}@media(max-width:700px){main{margin:0;padding:24px}.printbar{padding:0 20px}table{min-width:450px}.resources{min-width:720px}section{overflow:auto}}@page{size:A4;margin:18mm}@media print{body{background:white;font-size:10pt}main{padding:0;margin:0;max-width:none}.printbar{display:none}h2{break-after:avoid}figure{page-break-inside:avoid}figure img{max-height:190mm;object-fit:contain}thead{display:table-header-group}tr{break-inside:avoid}.table-scroll{overflow:visible}a{color:inherit}}';
+  const REPORT_CSS = `
+    .report-content { font-size: 15px; }
+    h2 { font-size: 20px; margin: 30px 0 12px; }
+    section { margin: 24px 0; }
+    section:first-child, section:first-child h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    td, th { border: 1px solid #dedee8; padding: 10px; text-align: left; overflow-wrap: anywhere; }
+    th { background: #f1effc; }
+    figure { margin: 24px 0; break-inside: avoid; }
+    figure img { display: block; max-width: 100%; height: auto; margin: auto; }
+    figcaption { font-size: 11px; color: #656878; text-align: center; overflow-wrap: anywhere; }
+    .meta { font-size: 12px; color: #656878; }
+    .table-scroll { overflow: auto; }
+    @media screen and (max-width: 760px) { .resources { min-width: 720px; } }
+    @media print {
+      body, .report-content { font-size: 10pt; }
+      h2 { break-after: avoid; }
+      figure img { max-height: 190mm; object-fit: contain; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+      .table-scroll { overflow: visible; }
+      a { color: inherit; }
+    }
+  `;
   function engineeringModule(){return root.AESEngineering||(typeof require==='function'?require('./engineering.js'):null);}
   function engineeringReportData(state){return engineeringModule().reportData(state);}
   function buildEngineeringReport(state){return engineeringModule().buildReport(state);}

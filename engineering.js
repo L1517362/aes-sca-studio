@@ -2,6 +2,7 @@
 (function(root){
   'use strict';
   const VERSION='1.0.0';
+  const reportLayout = root.AESReportLayout || (typeof require === 'function' && require('./report-layout.js'));
   const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const copy=value=>JSON.parse(JSON.stringify(value));
   function record(text,meta={},kind,parser){
@@ -97,8 +98,51 @@
     return '<div class="eng-budget-summary">'+headline+'<ul aria-label="按面积上限比较两套实现">'+cards.join('')+'</ul></div>';
   }
   function selectionHTML(s){if(!s)return '';const e=escapeHTML;return '<section class="eng-selection-result"><h2>条件筛选结果</h2><p>按所选数据来源、工程阶段与资源条件逐项筛选。</p>'+sliceBudgetSummary(s)+'<details><summary>本次筛选输入</summary><pre>'+e(JSON.stringify(s.input,null,2))+'</pre></details>'+s.candidates.map(c=>'<article class="panel panel-body eng-selection-candidate" data-selection-variant="'+e(c.variant_id)+'" data-selection-state="'+e(c.state)+'"><h3>'+e(c.name)+' · '+e(stateLabel[c.state])+'</h3><p>'+e(c.source)+'；器件 '+e(c.device||'—')+'；阶段 '+e(c.stage)+'；FF '+e(show(c.metrics.ff))+'</p>'+(c.sha256?'<p class="hash">SHA-256 '+e(c.sha256)+'</p>':'')+table(['条件','判断','输入/比较值','限值','单位','理由及来源'],c.checks.map(x=>[e(constraintLabel[x.constraint]||x.constraint),e(stateLabel[x.state]),e(show(x.value)),e(show(x.limit)),e(x.unit),e(x.reason)+'<br>'+e(x.source)]))+(c.nominal_throughput?'<p>吞吐率（名义估算） '+c.nominal_throughput.value.toFixed(2)+' Mbit/s；计算式 '+e(c.nominal_throughput.formula)+'；频率 '+c.nominal_throughput.frequency_mhz+' MHz（'+e(c.nominal_throughput.frequency_source)+'）；周期采用已记录的设计值。</p>':'')+'</article>').join('')+'</section>';}
-  const REPORT_CSS='*{box-sizing:border-box}body{margin:0;background:#f3f2f8;color:#29243c;font:14px/1.8 "Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1120px;background:white;margin:24px auto;padding:36px}h1{font-size:28px}h2{font-size:19px;margin-top:30px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #dedbe8;padding:9px;text-align:left;vertical-align:top}th{background:#f3f0fc}pre,code{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}pre{margin:4px 0;font-size:11px}td{overflow-wrap:anywhere}.eng-table-wrap{overflow:auto}.eng-notice{padding:14px;background:#f0edfc}.eng-warnings{color:#855900}.errors{padding:14px 18px;border-left:3px solid #bd2841;background:#fff1f3;color:#8f1b30}.errors ul{margin:6px 0 0;padding-left:20px}.printbar{max-width:1120px;margin:20px auto;display:flex;justify-content:space-between;gap:12px}button{padding:10px 16px;background:#6755d5;color:white;border:0;border-radius:8px;cursor:pointer}.eng-selection-result,.eng-prolead-record{overflow-wrap:anywhere;min-width:0}.eng-chart{width:100%;height:190px}.eng-chart polyline{fill:none;stroke:#6755d5;stroke-width:1.5}.eng-chart circle{fill:#cf475d}@media(max-width:700px){main{margin:0;padding:18px}.printbar{padding:0 18px}table{min-width:620px}}@page{size:A4;margin:16mm}@media print{body{background:white}main{margin:0;padding:0;max-width:none}.printbar{display:none}thead{display:table-header-group}tr{break-inside:avoid}h2{break-after:avoid}.eng-table-wrap{overflow:visible}}';
-  function buildReport(state){const report=reportData(state),title='AES侧信道防护对比与报告系统项目文档';return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+' · 工程报告复核</title><style>'+REPORT_CSS+'.eng-budget-summary{margin:14px 0 18px;padding:14px 16px;border:1px solid #d5d0ee;background:#f9f7ff;border-radius:10px}.eng-budget-summary p{margin:0}.eng-slice-budget{color:#30276b}.eng-slice-budget strong{font-size:21px}.eng-budget-summary ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,224px),1fr));gap:10px;padding:0;margin:8px 0 0;list-style:none}.eng-budget-summary li{padding:9px 12px;background:#fff;border-left:4px solid #6755d5;color:#2d2853}.eng-budget-summary li[data-area-state=not_satisfied]{border-left-color:#a65620}.eng-budget-summary b{font-size:23px}.eng-budget-summary li span{color:#474060}</style></head><body><div class="printbar"><span>工程报告复核 · 可独立阅读</span><button onclick="window.print()">打印 / 另存为 PDF</button></div><main><h1>'+title+'</h1><h2>工程报告复核</h2><p>SCA Studio · '+escapeHTML(report.generated_at)+'（ISO时间）</p>'+bodyHTML(report)+'</main></body></html>';}
+  const REPORT_CSS = `
+    h2 { font-size: 19px; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    td, th { border: 1px solid #dedbe8; padding: 9px; text-align: left; vertical-align: top; }
+    th { background: #f3f0fc; }
+    pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    pre { margin: 4px 0; font-size: 11px; }
+    td { overflow-wrap: anywhere; }
+    .eng-table-wrap { overflow: auto; }
+    .eng-notice { margin: 0; padding: 14px; background: #eff6fd; }
+    .eng-warnings { color: #855900; }
+    .errors { padding: 14px 18px; border-left: 3px solid #bd2841; background: #fff1f3; color: #8f1b30; }
+    .errors ul { margin: 6px 0 0; padding-left: 20px; }
+    .eng-selection-result, .eng-prolead-record { overflow-wrap: anywhere; min-width: 0; }
+    .eng-chart { width: 100%; height: 190px; }
+    .eng-chart polyline { fill: none; stroke: #6755d5; stroke-width: 1.5; }
+    .eng-chart circle { fill: #cf475d; }
+    .eng-budget-summary { margin: 14px 0 18px; padding: 14px 16px; border: 1px solid #d5d0ee; background: #f9f7ff; border-radius: 10px; }
+    .eng-budget-summary p { margin: 0; }
+    .eng-slice-budget { color: #30276b; }
+    .eng-slice-budget strong { font-size: 21px; }
+    .eng-budget-summary ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 224px), 1fr)); gap: 10px; padding: 0; margin: 8px 0 0; list-style: none; }
+    .eng-budget-summary li { padding: 9px 12px; background: #fff; border-left: 4px solid #6755d5; color: #2d2853; }
+    .eng-budget-summary li[data-area-state=not_satisfied] { border-left-color: #a65620; }
+    .eng-budget-summary b { font-size: 23px; }
+    .eng-budget-summary li span { color: #474060; }
+    @media screen and (max-width: 760px) { table { min-width: 620px; } }
+    @media print {
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+      h2 { break-after: avoid; }
+      .eng-table-wrap { overflow: visible; }
+    }
+  `;
+  function buildReport(state) {
+    const report = reportData(state);
+    return reportLayout.render({
+      kind: '工程报告复核',
+      titleSuffix: ' · 工程报告复核',
+      caption: '工程报告复核 · 可独立阅读',
+      detail: `SCA Studio · ${report.generated_at}（ISO时间）`,
+      content: bodyHTML(report),
+      css: REPORT_CSS,
+    });
+  }
   const api={VERSION,record,field,value,invalidText,uniqueContents,reportData,buildReport,bodyHTML,evidenceHTML,proleadHTML,proleadChart,selectionHTML,iseGroupsHTML,timingSummary,timingBasis,operationalErrors,statusLabel,errorsHTML,table,escapeHTML,show};
   root.AESEngineering=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

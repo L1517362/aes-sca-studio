@@ -321,7 +321,7 @@
       state.runs[kind]={selection:v.id,revision,completed_at:new Date().toISOString(),result_kind:'literature_figure',operation:'validate_and_load_existing_results',assets:checks,verification:hashChecked?'配置、图像解码与 SHA-256 校验通过':'配置与图像解码通过；本浏览器未提供 SHA-256 校验接口',software_load_ms:Math.round(performance.now()-start)};
       state.compared=false;state.comparedAt=null;state.exportedAt=null;
       log((kind==='baseline'?'未防护基线':v.name)+'已加载；'+(hashChecked?'原图校验通过。':'图像解码通过。'),'load');
-      if(!silent)toast('已有结果加载完成，可继续比较；原始波形未重新计算。');
+      if(!silent)toast('已导入文件加载完成，可继续比较');
       return true;
     }catch(err){if(revision===state.revision){state.runs[kind]=null;state.compared=false;state.comparedAt=null;state.exportedAt=null;}toast(err.message||'结果加载失败。',true);log('案例加载失败：'+(err.message||'未知错误'),'error');return false;}
     finally{ui.busy=null;render();}
